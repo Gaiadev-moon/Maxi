@@ -1,0 +1,526 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@maxipos/db"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== CORE =====================
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  settings  Json?    // {currency: "ARS", taxId: "CUIT", ...}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  branches  Branch[]
+  @@index([slug])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  code      String   // "DRUG-001", "BAR-001"
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  cashSessions CashSession[]
+  tables    Table[]
+  printers  Printer[]
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model User {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  email         String
+  passwordHash  String
+  firstName     String
+  lastName      String
+  pin           String?  @unique // 4-6 digit PIN for quick POS login
+  role          Role     @default(CASHIER)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  cashSessions  CashSession[]
+  sales         Sale[]      @relation("SaleUser")
+  orders        Order[]     @relation("OrderWaiter")
+  auditLogs     AuditLog[]
+  @@unique([tenantId, email])
+  @@index([tenantId, branchId])
+  @@index([pin])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  CASHIER
+  WAITER
+  KITCHEN
+}
+
+// ===================== PRODUCTS & STOCK =====================
+model Category {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  parentId    String?
+  parent      Category? @relation("Subcategories", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("Subcategories")
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  products    Product[]
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  code          String        // EAN13, SKU interno
+  name          String
+  description   String?
+  costPrice     Decimal       @db.Decimal(12, 2) // Precio de costo
+  salePrice     Decimal       @db.Decimal(12, 2) // Precio de venta
+  taxRate       Float         @default(0.21)     // 0.21 = 21% IVA
+  stock         Int           @default(0)
+  minStock      Int           @default(5)
+  maxStock      Int?          // Para alertas de sobre-stock
+  unit          String        @default("UN")     // UN, KG, LT, GR
+  barcode       String?       @unique
+  imageUrl      String?
+  isActive      Boolean       @default(true)
+  isService     Boolean       @default(false)    // Para servicios (corte, delivery fee)
+  allowDecimal  Boolean       @default(false)    // Para venta por peso
+  trackStock    Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  saleItems     SaleItem[]
+  orderItems    OrderItem[]
+  stockMovements StockMovement[]
+  suppliers     SupplierProduct[]
+  @@unique([tenantId, code])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, isActive])
+  @@index([barcode])
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  cuit        String?
+  email       String?
+  phone       String?
+  address     String?
+  contactName String?
+  paymentTerms Int?     // Días de crédito
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  products    SupplierProduct[]
+  purchaseOrders PurchaseOrder[]
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model SupplierProduct {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierCode String? // Código del proveedor
+  costPrice   Decimal  @db.Decimal(12, 2)
+  minOrderQty Int      @default(1)
+  leadTimeDays Int     @default(7)
+  isPrimary   Boolean  @default(false)
+  @@unique([supplierId, productId])
+}
+
+enum StockMovementType {
+  PURCHASE      // Entrada por compra
+  SALE          // Salida por venta
+  ADJUSTMENT_IN // Ajuste positivo (inventario)
+  ADJUSTMENT_OUT // Ajuste negativo (merma, rotura)
+  TRANSFER_IN   // Transferencia entrada
+  TRANSFER_OUT  // Transferencia salida
+  INITIAL       // Stock inicial
+  RETURN        // Devolución cliente
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  tenantId      String
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          StockMovementType
+  quantity      Int               // Positivo = entrada, Negativo = salida
+  previousStock Int
+  newStock      Int
+  unitCost      Decimal           @db.Decimal(12, 2) // Costo unitario al momento
+  reference     String?           // Nº factura, Nº venta, Nº ajuste
+  referenceType String?           // PURCHASE_ORDER, SALE, ADJUSTMENT, etc.
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  notes       String?
+  createdAt   DateTime @default(now())
+  @@index([tenantId, branchId, productId, createdAt])
+  @@index([tenantId, type, createdAt])
+}
+
+// ===================== DRUGSTORE: SALES =====================
+model CashSession {
+  id            String     @id @default(cuid())
+  tenantId      String
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status        CashSessionStatus @default(OPEN)
+  openingCash   Decimal    @db.Decimal(12, 2)
+  closingCash   Decimal?   @db.Decimal(12, 2)
+  expectedCash  Decimal?   @db.Decimal(12, 2)
+  difference    Decimal?   @db.Decimal(12, 2)
+  openedAt      DateTime   @default(now())
+  closedAt      DateTime?
+  sales         Sale[]
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, userId, openedAt])
+}
+
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+  RECONCILED
+}
+
+model Sale {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  cashSessionId  String
+  cashSession    CashSession @relation(fields: [cashSessionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation("SaleUser", fields: [userId], references: [id], onDelete: Restrict)
+  number         Int      // Secuencial por sucursal/año
+  status         SaleStatus @default(COMPLETED)
+  subtotal       Decimal  @db.Decimal(12, 2)
+  taxAmount      Decimal  @db.Decimal(12, 2)
+  discountAmount Decimal  @db.Decimal(12, 2) @default(0)
+  total          Decimal  @db.Decimal(12, 2)
+  customerName   String?
+  customerDni    String?
+  customerPhone  String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  items          SaleItem[]
+  payments       Payment[]
+  @@unique([tenantId, branchId, number])
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, cashSessionId])
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  PENDING
+}
+
+model SaleItem {
+  id            String   @id @default(cuid())
+  saleId        String
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName   String   // Snapshot al momento de venta
+  quantity      Int
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  unitCost      Decimal  @db.Decimal(12, 2) // Para margen
+  taxRate       Float
+  discount      Decimal  @db.Decimal(12, 2) @default(0)
+  lineTotal     Decimal  @db.Decimal(12, 2)
+  @@index([saleId])
+  @@index([productId])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD_DEBIT
+  CARD_CREDIT
+  QR_MERCADOPAGO
+  QR_MODOP
+  QR_BANCO
+  TRANSFER
+  CHECK
+  OTHER
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  saleId       String?
+  sale         Sale?         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  orderId      String?
+  order        Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method       PaymentMethod
+  amount       Decimal       @db.Decimal(12, 2)
+  reference    String?       // Últimos 4 dígitos tarjeta, ID transacción QR, etc.
+  status       PaymentStatus @default(APPROVED)
+  createdAt    DateTime      @default(now())
+  @@index([saleId])
+  @@index([orderId])
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+// ===================== BAR: TABLES & ORDERS =====================
+model Table {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId  String
+  branch    Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  number    Int
+  name      String?      // "Mesa 5", "Barra 2", "Terraza A"
+  zone      String       @default("salon") // salon, terraza, barra, vip
+  capacity  Int          @default(4)
+  status    TableStatus  @default(FREE)
+  x         Int          @default(0) // Posición en mapa visual
+  y         Int          @default(0)
+  shape     TableShape   @default(RECTANGLE)
+  width     Int          @default(80)
+  height    Int          @default(60)
+  rotation  Int          @default(0)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  orders    Order[]
+  @@unique([tenantId, branchId, number])
+  @@index([tenantId, branchId, status])
+}
+
+enum TableStatus {
+  FREE
+  OCCUPIED
+  ORDER_PENDING
+  BILL_REQUESTED
+  PAYING
+  BLOCKED
+}
+
+enum TableShape {
+  RECTANGLE
+  ROUND
+  SQUARE
+}
+
+model Order {
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableId     String
+  table       Table        @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  waiterId    String?
+  waiter      User?        @relation("OrderWaiter", fields: [waiterId], references: [id], onDelete: SetNull)
+  status      OrderStatus  @default(OPEN)
+  subtotal    Decimal      @db.Decimal(12, 2)
+  taxAmount   Decimal      @db.Decimal(12, 2)
+  discountAmount Decimal  @db.Decimal(12, 2) @default(0)
+  serviceCharge Decimal    @db.Decimal(12, 2) @default(0) // Propina sugerida
+  total       Decimal      @db.Decimal(12, 2)
+  notes       String?
+  openedAt    DateTime     @default(now())
+  closedAt    DateTime?
+  items       OrderItem[]
+  payments    Payment[]
+  @@index([tenantId, branchId, tableId, status])
+  @@index([tenantId, branchId, openedAt])
+}
+
+enum OrderStatus {
+  OPEN
+  SENT_TO_KITCHEN
+  PREPARING
+  READY
+  SERVED
+  BILL_REQUESTED
+  PAID
+  CANCELLED
+}
+
+model OrderItem {
+  id              String       @id @default(cuid())
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName     String       // Snapshot
+  quantity        Int
+  unitPrice       Decimal      @db.Decimal(12, 2)
+  unitCost        Decimal      @db.Decimal(12, 2)
+  taxRate         Float
+  discount        Decimal      @db.Decimal(12, 2) @default(0)
+  lineTotal       Decimal      @db.Decimal(12, 2)
+  status          OrderItemStatus @default(PENDING)
+  modifiers       Json?        // [{name: "Sin hielo", price: 0}, {name: "Extra queso", price: 100}]
+  kitchenNotes    String?
+  preparedAt      DateTime?
+  servedAt        DateTime?
+  preparedById    String?
+  preparedBy      User?        @relation(fields: [preparedById], references: [id], onDelete: SetNull)
+  @@index([orderId])
+  @@index([productId])
+  @@index([status])
+}
+
+enum OrderItemStatus {
+  PENDING
+  SENT
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+// ===================== PURCHASES =====================
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supplierId  String
+  supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  number      Int                 // Secuencial
+  status      PurchaseOrderStatus @default(DRAFT)
+  expectedDate DateTime?
+  subtotal    Decimal             @db.Decimal(12, 2)
+  taxAmount   Decimal             @db.Decimal(12, 2)
+  total       Decimal             @db.Decimal(12, 2)
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  receivedAt  DateTime?
+  items       PurchaseOrderItem[]
+  @@unique([tenantId, branchId, number])
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, supplierId])
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIAL_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrderItem {
+  id            String   @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity      Int
+  unitCost      Decimal  @db.Decimal(12, 2)
+  taxRate       Float
+  receivedQty   Int      @default(0)
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+// ===================== PRINTING =====================
+model Printer {
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name        String       // "Caja Principal", "Cocina", "Barra"
+  type        PrinterType  @default(NETWORK)
+  ipAddress   String?      // Para network
+  port        Int?         // 9100 default
+  usbVendorId String?      // Para USB
+  usbProductId String?    // Para USB
+  serialPath  String?      // /dev/ttyUSB0, COM3
+  profile     PrinterProfile @default(ESC_POS_80MM)
+  isDefault   Boolean      @default(false)
+  isActive    Boolean      @default(true)
+  cashDrawerPin Int?       // Pin para abrir cajón (2 o 5)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@unique([tenantId, branchId, name])
+  @@index([tenantId, branchId, isActive])
+}
+
+enum PrinterType {
+  NETWORK
+  USB
+  SERIAL
+  WEBUSB
+  PRINT_SERVER
+}
+
+enum PrinterProfile {
+  ESC_POS_80MM
+  ESC_POS_58MM
+  STAR_TSP100
+  EPSON_TM_T88
+  CUSTOM
+}
+
+// ===================== AUDIT =====================
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, PRINT, CASH_OPEN, CASH_CLOSE
+  entity    String   // Product, Sale, Order, User, etc.
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  @@index([tenantId, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, entity, entityId])
+}
