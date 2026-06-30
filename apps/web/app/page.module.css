@@ -132,6 +132,107 @@
   font-size: 12px;
 }
 
+.moduleChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.moduleChoice {
+  min-height: 150px;
+  border: 1px solid #dce4de;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: left;
+  display: grid;
+  align-content: space-between;
+  color: #fff;
+  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.12);
+}
+
+.moduleChoice span,
+.moduleChoice small {
+  font-weight: 800;
+  opacity: 0.82;
+}
+
+.moduleChoice strong {
+  display: block;
+  font-size: 28px;
+  line-height: 1.1;
+  max-width: 420px;
+}
+
+.drugstoreChoice {
+  background: #235f4c;
+}
+
+.barChoice {
+  background: #7a342b;
+}
+
+.moduleHeader {
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: end;
+  color: #fff;
+  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.12);
+}
+
+.moduleHeader span,
+.moduleHeader p,
+.moduleStats small {
+  opacity: 0.82;
+}
+
+.moduleHeader h2 {
+  margin: 5px 0 8px;
+  font-size: 30px;
+  letter-spacing: 0;
+}
+
+.moduleHeader p {
+  margin: 0;
+  max-width: 680px;
+}
+
+.drugstoreHeader {
+  background: #235f4c;
+}
+
+.barHeader {
+  background: #7a342b;
+}
+
+.moduleStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+.moduleStats div {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 0;
+}
+
+.moduleStats small,
+.moduleStats strong {
+  display: block;
+}
+
+.moduleStats strong {
+  margin-top: 4px;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
 .segmentedControl {
   display: flex;
   flex-wrap: wrap;
@@ -158,6 +259,14 @@
 .segmentedControl .segmentActive {
   background: #28785f;
   color: #fff;
+}
+
+.barTabs .segmentActive {
+  background: #a74837;
+}
+
+.drugstoreTabs .segmentActive {
+  background: #28785f;
 }
 
 .metricGrid,
@@ -467,8 +576,10 @@
 @media (max-width: 920px) {
   .shell,
   .metricGrid,
+  .moduleChoiceGrid,
   .twoColumn,
-  .workGrid {
+  .workGrid,
+  .moduleHeader {
     grid-template-columns: 1fr;
   }
 
@@ -492,6 +603,10 @@
   .sticky {
     position: static;
   }
+
+  .moduleStats {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -509,5 +624,14 @@
 
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .moduleStats {
+    grid-template-columns: 1fr;
+  }
+
+  .moduleChoice strong,
+  .moduleHeader h2 {
+    font-size: 24px;
   }
 }

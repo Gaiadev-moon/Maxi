@@ -137,6 +137,11 @@ export default function Home() {
   }, [state]);
 
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
+  const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
+  const barSales = state.sales.filter((sale) => sale.area === "bar");
+  const todayDrugstoreSales = todaySales.filter((sale) => sale.area === "drugstore");
+  const todayBarSales = todaySales.filter((sale) => sale.area === "bar");
+  const openTables = state.tables.filter((table) => table.items.length);
   const lowStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
   const lowDrugstoreStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
   const selectedTable = state.tables.find((table) => table.id === selectedTableId);
@@ -365,10 +370,22 @@ export default function Home() {
 
         {view === "dashboard" && (
           <>
+            <div className={styles.moduleChoiceGrid}>
+              <button className={`${styles.moduleChoice} ${styles.drugstoreChoice}`} onClick={() => setView("drugstore")}>
+                <span>Modulo Drugstore</span>
+                <strong>Stock y ventas de mostrador</strong>
+                <small>{money(todayDrugstoreSales.reduce((sum, sale) => sum + sale.total, 0))} vendidos hoy</small>
+              </button>
+              <button className={`${styles.moduleChoice} ${styles.barChoice}`} onClick={() => setView("bar")}>
+                <span>Modulo Bar</span>
+                <strong>Mesas, menu y barra</strong>
+                <small>{openTables.length} mesas con pedido</small>
+              </button>
+            </div>
             <div className={styles.metricGrid}>
               <Metric label="Ventas hoy" value={money(todaySales.reduce((sum, sale) => sum + sale.total, 0))} />
               <Metric label="Tickets hoy" value={String(todaySales.length)} />
-              <Metric label="Mesas abiertas" value={String(state.tables.filter((table) => table.items.length).length)} />
+              <Metric label="Mesas abiertas" value={String(openTables.length)} />
               <Metric label="Stock bajo" value={String(lowStock.length)} alert />
             </div>
             <div className={styles.twoColumn}>
@@ -386,7 +403,19 @@ export default function Home() {
 
         {view === "drugstore" && (
           <>
+            <ModuleHeader
+              tone="drugstore"
+              label="Modulo Drugstore"
+              title="Mostrador y stock real"
+              description="Esta seccion maneja productos fisicos, descuenta cantidades y genera tickets D separados."
+              stats={[
+                ["Hoy", money(todayDrugstoreSales.reduce((sum, sale) => sum + sale.total, 0))],
+                ["Tickets", String(todayDrugstoreSales.length)],
+                ["Stock bajo", String(lowDrugstoreStock.length)],
+              ]}
+            />
             <SegmentedControl
+              tone="drugstore"
               options={[
                 ["venta", "Venta y tickets"],
                 ["stock", "Stock"],
@@ -422,7 +451,19 @@ export default function Home() {
 
         {view === "bar" && (
           <>
+            <ModuleHeader
+              tone="bar"
+              label="Modulo Bar"
+              title="Mesas, pedidos y menu"
+              description="Esta seccion no descuenta stock: controla que se vende, estados de mesa y tickets B separados."
+              stats={[
+                ["Hoy", money(todayBarSales.reduce((sum, sale) => sum + sale.total, 0))],
+                ["Tickets", String(todayBarSales.length)],
+                ["Mesas", String(openTables.length)],
+              ]}
+            />
             <SegmentedControl
+              tone="bar"
               options={[
                 ["mesas", "Mesas y pedidos"],
                 ["menu", "Menu"],
@@ -492,8 +533,8 @@ export default function Home() {
               <Panel title="Mas vendidos"><TopItems sales={state.sales} /></Panel>
             </div>
             <div className={styles.twoColumn}>
-              <SalesTable title="Facturacion Drugstore" sales={state.sales.filter((sale) => sale.area === "drugstore")} settings={state.settings} />
-              <SalesTable title="Facturacion Bar" sales={state.sales.filter((sale) => sale.area === "bar")} settings={state.settings} />
+              <SalesTable title="Facturacion Drugstore" sales={drugstoreSales} settings={state.settings} />
+              <SalesTable title="Facturacion Bar" sales={barSales} settings={state.settings} />
             </div>
           </>
         )}
@@ -510,9 +551,29 @@ export default function Home() {
   );
 }
 
-function SegmentedControl({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (value: string) => void }) {
+function ModuleHeader({ tone, label, title, description, stats }: { tone: "drugstore" | "bar"; label: string; title: string; description: string; stats: [string, string][] }) {
   return (
-    <div className={styles.segmentedControl}>
+    <section className={`${styles.moduleHeader} ${tone === "bar" ? styles.barHeader : styles.drugstoreHeader}`}>
+      <div>
+        <span>{label}</span>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      <div className={styles.moduleStats}>
+        {stats.map(([statLabel, value]) => (
+          <div key={statLabel}>
+            <small>{statLabel}</small>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SegmentedControl({ options, value, onChange, tone }: { options: [string, string][]; value: string; onChange: (value: string) => void; tone?: "drugstore" | "bar" }) {
+  return (
+    <div className={`${styles.segmentedControl} ${tone === "bar" ? styles.barTabs : styles.drugstoreTabs}`}>
       {options.map(([key, label]) => (
         <button key={key} className={value === key ? styles.segmentActive : ""} onClick={() => onChange(key)}>
           {label}
