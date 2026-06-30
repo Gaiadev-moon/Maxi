@@ -132,6 +132,34 @@
   font-size: 12px;
 }
 
+.segmentedControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 6px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #dce4de;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.06);
+}
+
+.segmentedControl button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #66736c;
+  padding: 9px 12px;
+  font-weight: 800;
+}
+
+.segmentedControl .segmentActive {
+  background: #28785f;
+  color: #fff;
+}
+
 .metricGrid,
 .twoColumn,
 .workGrid {

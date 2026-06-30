@@ -50,7 +50,9 @@ type AppState = {
   tables: TableOrder[];
 };
 
-type View = "dashboard" | "sales" | "stock" | "bar" | "reports" | "settings";
+type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
+type DrugstoreOption = "venta" | "stock";
+type BarOption = "mesas" | "menu" | "venta";
 
 const storageKey = "maxi_drugstore_bar_v1";
 
@@ -81,9 +83,8 @@ const seedState: AppState = {
 
 const viewCopy: Record<View, [string, string]> = {
   dashboard: ["Resumen", "Ventas, stock y mesas en un solo lugar."],
-  sales: ["Ventas y tickets", "Cobro rapido para drugstore o bar con ticket local."],
-  stock: ["Stock drugstore", "Alta, precio, minimo y reposicion de productos."],
-  bar: ["Bar y mesas", "Menu, pedidos abiertos y cierre de mesa."],
+  drugstore: ["Drugstore", "Ventas, tickets y stock del drugstore."],
+  bar: ["Bar", "Menu, mesas, pedidos y ventas del bar."],
   reports: ["Reportes", "Control de que se vende y por donde entra la plata."],
   settings: ["Ajustes", "Datos que aparecen en los tickets."],
 };
@@ -101,8 +102,9 @@ const blankProduct: Product = {
 export default function Home() {
   const [state, setState] = useState<AppState>(seedState);
   const [view, setView] = useState<View>("dashboard");
+  const [drugstoreOption, setDrugstoreOption] = useState<DrugstoreOption>("venta");
+  const [barOption, setBarOption] = useState<BarOption>("mesas");
   const [cart, setCart] = useState<LineItem[]>([]);
-  const [saleArea, setSaleArea] = useState<Area>("drugstore");
   const [saleSearch, setSaleSearch] = useState("");
   const [barSearch, setBarSearch] = useState("");
   const [customer, setCustomer] = useState("");
@@ -129,9 +131,14 @@ export default function Home() {
 
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
   const lowStock = state.products.filter((product) => product.stock <= product.min);
+  const lowDrugstoreStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
+  const lowBarStock = state.products.filter((product) => product.area === "bar" && product.stock <= product.min);
   const selectedTable = state.tables.find((table) => table.id === selectedTableId);
-  const filteredSaleProducts = filterProducts(state.products, saleArea, saleSearch);
+  const filteredDrugstoreSaleProducts = filterProducts(state.products, "drugstore", saleSearch);
+  const filteredBarSaleProducts = filterProducts(state.products, "bar", saleSearch);
   const filteredMenu = filterProducts(state.products, "bar", barSearch);
+  const drugstoreProducts = state.products.filter((product) => product.area === "drugstore");
+  const barProducts = state.products.filter((product) => product.area === "bar");
   const cartSum = total(cart);
   const tableSum = total(selectedTable?.items ?? []);
   const [title, subtitle] = viewCopy[view];
@@ -209,9 +216,9 @@ export default function Home() {
     return sale;
   }
 
-  function finishSale() {
+  function finishSale(area: Area) {
     if (!cart.length) return;
-    const sale = createSale(saleArea, customer, payment, cart);
+    const sale = createSale(area, customer, payment, cart);
     setCart([]);
     setCustomer("");
     setTimeout(() => printTicket(state.settings, sale), 50);
@@ -341,70 +348,104 @@ export default function Home() {
           </>
         )}
 
-        {view === "sales" && (
-          <div className={styles.workGrid}>
-            <Panel title="Nueva venta" action={<select value={saleArea} onChange={(event) => setSaleArea(event.target.value as Area)}><option value="drugstore">Drugstore</option><option value="bar">Bar</option></select>}>
-              <input type="search" placeholder="Buscar producto o item..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
-              <ProductGrid products={filteredSaleProducts} onPick={(id) => addLine(id, "cart")} />
-            </Panel>
-            <Panel title="Ticket" action={<button className={styles.smallButton} onClick={() => setCart([])}>Vaciar</button>} sticky>
-              <Cart items={cart} onQty={(id, delta) => changeQty(id, delta, "cart")} />
-              <div className={styles.checkoutFooter}>
-                <label>Cliente<input value={customer} onChange={(event) => setCustomer(event.target.value)} placeholder="Consumidor final" /></label>
-                <label>Pago<select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cuenta corriente</option></select></label>
-                <Total label="Total" value={cartSum} />
-                <button className={styles.primaryButton} onClick={finishSale}>Cobrar e imprimir</button>
+        {view === "drugstore" && (
+          <>
+            <SegmentedControl
+              options={[
+                ["venta", "Venta y tickets"],
+                ["stock", "Stock"],
+              ]}
+              value={drugstoreOption}
+              onChange={(value) => setDrugstoreOption(value as DrugstoreOption)}
+            />
+            {drugstoreOption === "venta" && (
+              <div className={styles.workGrid}>
+                <Panel title="Venta drugstore">
+                  <input type="search" placeholder="Buscar producto..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
+                  <ProductGrid products={filteredDrugstoreSaleProducts} onPick={(id) => addLine(id, "cart")} />
+                </Panel>
+                <SaleTicket cart={cart} customer={customer} payment={payment} cartSum={cartSum} setCart={setCart} setCustomer={setCustomer} setPayment={setPayment} onQty={(id, delta) => changeQty(id, delta, "cart")} onFinish={() => finishSale("drugstore")} />
               </div>
-            </Panel>
-          </div>
-        )}
-
-        {view === "stock" && (
-          <Panel title="Productos" action={<button className={styles.primaryCompact} onClick={() => setEditingProduct(blankProduct)}>Agregar producto</button>}>
-            <div className={styles.tableWrap}>
-              <table>
-                <thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th><th>Stock</th><th>Min.</th><th /></tr></thead>
-                <tbody>
-                  {state.products.map((product) => (
-                    <tr key={product.id}>
-                      <td><strong>{product.name}</strong><br /><span>{labelArea(product.area)}</span></td>
-                      <td>{product.category}</td>
-                      <td>{money(product.price)}</td>
-                      <td className={product.stock <= product.min ? styles.low : ""}>{product.stock}</td>
-                      <td>{product.min}</td>
-                      <td><div className={styles.rowActions}><button className={styles.smallButton} onClick={() => setEditingProduct(product)}>Editar</button><button className={styles.smallButton} onClick={() => deleteProduct(product.id)}>Borrar</button></div></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+            )}
+            {drugstoreOption === "stock" && (
+              <ProductTable
+                title="Stock drugstore"
+                products={drugstoreProducts}
+                onAdd={() => setEditingProduct({ ...blankProduct, area: "drugstore" })}
+                onEdit={setEditingProduct}
+                onDelete={deleteProduct}
+              />
+            )}
+            {drugstoreOption === "stock" && lowDrugstoreStock.length > 0 && (
+              <Panel title="Reposicion del drugstore">
+                {lowDrugstoreStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
+              </Panel>
+            )}
+          </>
         )}
 
         {view === "bar" && (
-          <div className={styles.workGrid}>
-            <Panel title="Mesas" action={<button className={styles.primaryCompact} onClick={() => {
-              const table = { id: crypto.randomUUID(), name: `Mesa ${state.tables.length + 1}`, items: [] };
-              mutate({ ...state, tables: [...state.tables, table] });
-              setSelectedTableId(table.id);
-            }}>Nueva mesa</button>}>
-              <div className={styles.tableGrid}>
-                {state.tables.map((table) => (
-                  <button key={table.id} className={`${styles.tableCard} ${selectedTableId === table.id ? styles.selected : ""}`} onClick={() => setSelectedTableId(table.id)}>
-                    <strong>{table.name}</strong>
-                    <span>{table.items.length} items</span>
-                    <span>{money(total(table.items))}</span>
-                  </button>
-                ))}
+          <>
+            <SegmentedControl
+              options={[
+                ["mesas", "Mesas y pedidos"],
+                ["menu", "Menu y stock"],
+                ["venta", "Venta barra"],
+              ]}
+              value={barOption}
+              onChange={(value) => setBarOption(value as BarOption)}
+            />
+            {barOption === "mesas" && (
+              <div className={styles.workGrid}>
+                <Panel title="Mesas" action={<button className={styles.primaryCompact} onClick={() => {
+                  const table = { id: crypto.randomUUID(), name: `Mesa ${state.tables.length + 1}`, items: [] };
+                  mutate({ ...state, tables: [...state.tables, table] });
+                  setSelectedTableId(table.id);
+                }}>Nueva mesa</button>}>
+                  <div className={styles.tableGrid}>
+                    {state.tables.map((table) => (
+                      <button key={table.id} className={`${styles.tableCard} ${selectedTableId === table.id ? styles.selected : ""}`} onClick={() => setSelectedTableId(table.id)}>
+                        <strong>{table.name}</strong>
+                        <span>{table.items.length} items</span>
+                        <span>{money(total(table.items))}</span>
+                      </button>
+                    ))}
+                  </div>
+                </Panel>
+                <Panel title={`Pedido - ${selectedTable?.name ?? "mesa"}`} action={<button className={styles.smallButton} onClick={closeTable}>Cerrar mesa</button>} sticky>
+                  <input type="search" placeholder="Buscar en menu..." value={barSearch} onChange={(event) => setBarSearch(event.target.value)} />
+                  <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact />
+                  <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
+                  <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
+                </Panel>
               </div>
-            </Panel>
-            <Panel title={`Pedido - ${selectedTable?.name ?? "mesa"}`} action={<button className={styles.smallButton} onClick={closeTable}>Cerrar mesa</button>} sticky>
-              <input type="search" placeholder="Buscar en menu..." value={barSearch} onChange={(event) => setBarSearch(event.target.value)} />
-              <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact />
-              <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
-              <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
-            </Panel>
-          </div>
+            )}
+            {barOption === "menu" && (
+              <>
+                <ProductTable
+                  title="Menu y stock del bar"
+                  products={barProducts}
+                  onAdd={() => setEditingProduct({ ...blankProduct, area: "bar" })}
+                  onEdit={setEditingProduct}
+                  onDelete={deleteProduct}
+                />
+                {lowBarStock.length > 0 && (
+                  <Panel title="Reposicion del bar">
+                    {lowBarStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
+                  </Panel>
+                )}
+              </>
+            )}
+            {barOption === "venta" && (
+              <div className={styles.workGrid}>
+                <Panel title="Venta barra">
+                  <input type="search" placeholder="Buscar item del bar..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
+                  <ProductGrid products={filteredBarSaleProducts} onPick={(id) => addLine(id, "cart")} />
+                </Panel>
+                <SaleTicket cart={cart} customer={customer} payment={payment} cartSum={cartSum} setCart={setCart} setCustomer={setCustomer} setPayment={setPayment} onQty={(id, delta) => changeQty(id, delta, "cart")} onFinish={() => finishSale("bar")} />
+              </div>
+            )}
+          </>
         )}
 
         {view === "reports" && (
@@ -437,6 +478,76 @@ export default function Home() {
 
       {editingProduct && <ProductModal product={editingProduct} onCancel={() => setEditingProduct(null)} onSave={saveProduct} />}
     </div>
+  );
+}
+
+function SegmentedControl({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className={styles.segmentedControl}>
+      {options.map(([key, label]) => (
+        <button key={key} className={value === key ? styles.segmentActive : ""} onClick={() => onChange(key)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SaleTicket({
+  cart,
+  customer,
+  payment,
+  cartSum,
+  setCart,
+  setCustomer,
+  setPayment,
+  onQty,
+  onFinish,
+}: {
+  cart: LineItem[];
+  customer: string;
+  payment: string;
+  cartSum: number;
+  setCart: (items: LineItem[]) => void;
+  setCustomer: (value: string) => void;
+  setPayment: (value: string) => void;
+  onQty: (id: string, delta: number) => void;
+  onFinish: () => void;
+}) {
+  return (
+    <Panel title="Ticket" action={<button className={styles.smallButton} onClick={() => setCart([])}>Vaciar</button>} sticky>
+      <Cart items={cart} onQty={onQty} />
+      <div className={styles.checkoutFooter}>
+        <label>Cliente<input value={customer} onChange={(event) => setCustomer(event.target.value)} placeholder="Consumidor final" /></label>
+        <label>Pago<select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cuenta corriente</option></select></label>
+        <Total label="Total" value={cartSum} />
+        <button className={styles.primaryButton} onClick={onFinish}>Cobrar e imprimir</button>
+      </div>
+    </Panel>
+  );
+}
+
+function ProductTable({ title, products, onAdd, onEdit, onDelete }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void }) {
+  return (
+    <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>}>
+      <div className={styles.tableWrap}>
+        <table>
+          <thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th><th>Stock</th><th>Min.</th><th /></tr></thead>
+          <tbody>
+            {products.map((product) => (
+              <tr key={product.id}>
+                <td><strong>{product.name}</strong><br /><span>{labelArea(product.area)}</span></td>
+                <td>{product.category}</td>
+                <td>{money(product.price)}</td>
+                <td className={product.stock <= product.min ? styles.low : ""}>{product.stock}</td>
+                <td>{product.min}</td>
+                <td><div className={styles.rowActions}><button className={styles.smallButton} onClick={() => onEdit(product)}>Editar</button><button className={styles.smallButton} onClick={() => onDelete(product.id)}>Borrar</button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
