@@ -283,6 +283,46 @@
   background: #e7f4ed;
 }
 
+.statusPill {
+  width: fit-content;
+  margin: 8px 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-weight: 800;
+}
+
+.preparing {
+  background: #fff2cc;
+  color: #8a5a00;
+}
+
+.delivered {
+  background: #dff3e8;
+  color: #1f6b4f;
+}
+
+.statusActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.statusActions button {
+  border: 1px solid #dce4de;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2a24;
+  padding: 8px 11px;
+  font-weight: 800;
+}
+
+.statusActions .statusActive {
+  background: #28785f;
+  color: #fff;
+  border-color: #28785f;
+}
+
 .cartList {
   max-height: 330px;
   overflow: auto;
@@ -411,6 +451,12 @@
 .formGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.formGridSingle {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
