@@ -136,6 +136,17 @@
   font-weight: 900;
 }
 
+.homeButton {
+  border-color: #3b2418;
+  background: #c9974b;
+  color: #21140d;
+  box-shadow: inset 0 0 0 1px #f7dca5, 0 5px 12px rgba(43, 26, 16, 0.16);
+}
+
+.homeButton:hover {
+  background: #d7aa61;
+}
+
 .moduleChoiceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

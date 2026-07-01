@@ -352,7 +352,7 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.topActions}>
-            {view !== "dashboard" && <button className={styles.textButton} onClick={() => setView("dashboard")}>Inicio</button>}
+            {view !== "dashboard" && <button className={`${styles.textButton} ${styles.homeButton}`} onClick={() => setView("dashboard")}>Inicio</button>}
             <button className={styles.textButton} onClick={() => setView("reports")}>Reportes</button>
             <button className={styles.textButton} onClick={() => setView("settings")}>Ajustes</button>
           </div>
