@@ -1024,6 +1024,10 @@
   align-items: start;
 }
 
+.tablesWorkspace .tableGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .tableOrderColumn {
   display: grid;
   gap: 24px;
@@ -1376,6 +1380,10 @@
   .tablesWorkspace,
   .tableOrderColumn {
     gap: 14px;
+  }
+
+  .tablesWorkspace .tableGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tableOrderColumn .panelHeader {
