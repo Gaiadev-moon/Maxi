@@ -565,6 +565,7 @@ export default function Home() {
                   onDelete={deleteProduct}
                   menuOnly
                   hideCategory
+                  pageSize={20}
                 />
               </>
             )}
@@ -710,7 +711,7 @@ function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, on
 
   return (
     <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>} variant={variant}>
-      {pageSize && <div className={styles.stockSearchBar}><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Buscar por nombre o codigo de barras..." /><span>{filteredProducts.length} articulos</span></div>}
+      {pageSize && <div className={styles.stockSearchBar}><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={onViewBarcodes ? "Buscar por nombre o codigo de barras..." : "Buscar por nombre..."} /><span>{filteredProducts.length} articulos</span></div>}
       <div className={styles.tableWrap}>
         <table>
           <thead><tr><th>Producto</th>{!hideCategory && <th>Categoria</th>}<th>Precio</th>{!menuOnly && <th>Stock</th>}{!menuOnly && <th>Min.</th>}<th /></tr></thead>
