@@ -391,17 +391,20 @@ export default function Home() {
         )}
 
         {view === "bar" && (
-          <>
-            <SegmentedControl
-              tone="bar"
-              options={[
-                ["mesas", "Mesas y pedidos"],
-                ["menu", "Menu"],
-                ["venta", "Venta barra"],
-              ]}
-              value={barOption}
-              onChange={(value) => setBarOption(value as BarOption)}
-            />
+          <section className={styles.barSection}>
+            <div className={styles.barNav}>
+              <SegmentedControl
+                tone="bar"
+                options={[
+                  ["mesas", "Mesas y pedidos"],
+                  ["menu", "Menu"],
+                  ["venta", "Venta barra"],
+                ]}
+                value={barOption}
+                onChange={(value) => setBarOption(value as BarOption)}
+              />
+            </div>
+            <div className={styles.barContent}>
             {barOption === "mesas" && (
               <div className={styles.workGrid}>
                 <Panel title="Mesas" action={<button className={styles.primaryCompact} onClick={() => {
@@ -426,7 +429,7 @@ export default function Home() {
                     <button className={selectedTable?.status === "preparacion" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "preparacion")}>En preparacion</button>
                     <button className={selectedTable?.status === "entregado" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "entregado")}>Entregado</button>
                   </div>
-                  <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact />
+                  <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact hideCategory />
                   <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
                   <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
                 </Panel>
@@ -441,6 +444,7 @@ export default function Home() {
                   onEdit={setEditingProduct}
                   onDelete={deleteProduct}
                   menuOnly
+                  hideCategory
                 />
               </>
             )}
@@ -448,12 +452,13 @@ export default function Home() {
               <div className={styles.workGrid}>
                 <Panel title="Venta barra">
                   <input type="search" placeholder="Buscar item del bar..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
-                  <ProductGrid products={filteredBarSaleProducts} onPick={(id) => addLine(id, "barCart")} />
+                  <ProductGrid products={filteredBarSaleProducts} onPick={(id) => addLine(id, "barCart")} hideCategory />
                 </Panel>
                 <SaleTicket cart={barCart} customer={barCustomer} payment={barPayment} cartSum={barCartSum} setCart={setBarCart} setCustomer={setBarCustomer} setPayment={setBarPayment} onQty={(id, delta) => changeQty(id, delta, "barCart")} onFinish={() => finishSale("bar")} />
               </div>
             )}
-          </>
+            </div>
+          </section>
         )}
 
         {view === "reports" && (
@@ -589,7 +594,7 @@ function SettingsForm({ state, onSave }: { state: AppState; onSave: (settings: A
 function ProductModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (product: Product) => void }) {
   const [draft, setDraft] = useState(product);
   const isBar = draft.area === "bar";
-  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: formatName(event.target.value) })} /></label>{isBar && <label>Categoria<input required value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label>}<label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price} onChange={(event) => setDraft({ ...draft, price: Number(event.target.value) })} /></label>{!isBar && <label>Stock<input type="number" min="0" value={draft.stock} onChange={(event) => setDraft({ ...draft, stock: Number(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min} onChange={(event) => setDraft({ ...draft, min: Number(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
+  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: formatName(event.target.value) })} /></label><label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>{!isBar && <label>Stock<input type="number" min="0" value={draft.stock || ""} onChange={(event) => setDraft({ ...draft, stock: numberValue(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min || ""} onChange={(event) => setDraft({ ...draft, min: numberValue(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
 }
 
 function AreaReport({ sales }: { sales: Sale[] }) {
@@ -677,6 +682,10 @@ function normalize(value: string) {
 function formatName(value: string) {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function numberValue(value: string) {
+  return value === "" ? 0 : Number(value);
 }
 
 function printTicket(settings: AppState["settings"], sale: Sale) {

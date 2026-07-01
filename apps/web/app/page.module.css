@@ -338,6 +338,70 @@
   gap: 24px;
 }
 
+.barSection {
+  overflow: hidden;
+  border: 1px solid #d8b49f;
+  border-radius: 8px;
+  background: #f0ded2;
+  box-shadow: 0 18px 40px rgba(43, 26, 16, 0.1);
+}
+
+.barNav {
+  padding: 16px 20px;
+  border-bottom: 1px solid #d8b49f;
+  background: #8f4a2f;
+}
+
+.barNav .segmentedControl {
+  width: 100%;
+  margin: 0;
+  padding: 4px;
+  border-color: rgba(255, 243, 210, 0.3);
+  background: #713823;
+  box-shadow: none;
+}
+
+.barNav .segmentedControl button {
+  min-height: 44px;
+  flex: 1;
+  color: #f4dfd0;
+}
+
+.barNav .segmentedControl .segmentActive {
+  background: #fff0cf;
+  color: #5f2f1e;
+}
+
+.barContent {
+  padding: 24px;
+}
+
+.barSection .panel {
+  margin-bottom: 0;
+  border-color: #d8b49f;
+  box-shadow: none;
+}
+
+.barSection .workGrid {
+  gap: 24px;
+}
+
+.barSection .workGrid > .panel:first-child .panelHeader {
+  margin: -18px -18px 18px;
+  padding: 17px 18px;
+  border-bottom: 1px solid #e5c9b8;
+  background: #fff2e8;
+}
+
+.barSection .ticketPanel {
+  border: 2px solid #8f4a2f;
+  box-shadow: 0 14px 28px rgba(79, 39, 25, 0.13);
+}
+
+.barSection .ticketPanel .panelHeader {
+  background: #8f4a2f;
+}
+
 .metricGrid,
 .twoColumn,
 .workGrid {
@@ -782,6 +846,18 @@
 
   .drugstoreSaleLayout,
   .inventoryLayout {
+    gap: 14px;
+  }
+
+  .barNav {
+    padding: 12px;
+  }
+
+  .barContent {
+    padding: 14px;
+  }
+
+  .barSection .workGrid {
     gap: 14px;
   }
 
