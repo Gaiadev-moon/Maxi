@@ -489,6 +489,7 @@ export default function Home() {
                     onViewBarcodes={setBarcodeProduct}
                     variant="inventory"
                     hideCategory
+                    pageSize={20}
                   />
                   {lowDrugstoreStock.length > 0 && (
                     <Panel title="Necesitan reposicion" variant="alert">
@@ -694,14 +695,24 @@ function SaleTicket({
   );
 }
 
-function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, onViewBarcodes, menuOnly = false, variant, hideCategory = false }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; onAddStock?: (product: Product) => void; onViewBarcodes?: (product: Product) => void; menuOnly?: boolean; variant?: "inventory"; hideCategory?: boolean }) {
+function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, onViewBarcodes, menuOnly = false, variant, hideCategory = false, pageSize }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; onAddStock?: (product: Product) => void; onViewBarcodes?: (product: Product) => void; menuOnly?: boolean; variant?: "inventory"; hideCategory?: boolean; pageSize?: number }) {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const filteredProducts = pageSize
+    ? products.filter((product) => normalize(`${product.name} ${product.barcodes.join(" ")}`).includes(normalize(query)))
+    : products;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / (pageSize ?? Math.max(1, filteredProducts.length))));
+  const currentPage = Math.min(page, totalPages);
+  const visibleProducts = pageSize ? filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize) : filteredProducts;
+
   return (
     <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>} variant={variant}>
+      {pageSize && <div className={styles.stockSearchBar}><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Buscar por nombre o codigo de barras..." /><span>{filteredProducts.length} articulos</span></div>}
       <div className={styles.tableWrap}>
         <table>
           <thead><tr><th>Producto</th>{!hideCategory && <th>Categoria</th>}<th>Precio</th>{!menuOnly && <th>Stock</th>}{!menuOnly && <th>Min.</th>}<th /></tr></thead>
           <tbody>
-            {products.map((product) => (
+            {visibleProducts.map((product) => (
               <tr key={product.id}>
                 <td><strong>{product.name}</strong><br /><span>{labelArea(product.area)}</span></td>
                 {!hideCategory && <td>{product.category}</td>}
@@ -711,9 +722,11 @@ function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, on
                 <td><div className={styles.rowActions}>{onViewBarcodes && <button className={styles.barcodeButton} onClick={() => onViewBarcodes(product)}>Ver codigos ({product.barcodes.length})</button>}{onAddStock && <button className={styles.stockButton} onClick={() => onAddStock(product)}>Agregar stock</button>}<button className={styles.smallButton} onClick={() => onEdit(product)}>Editar</button><button className={styles.smallButton} onClick={() => onDelete(product.id)}>Borrar</button></div></td>
               </tr>
             ))}
+            {!visibleProducts.length && <tr><td colSpan={6}><div className={styles.empty}>No se encontraron productos.</div></td></tr>}
           </tbody>
         </table>
       </div>
+      {pageSize && totalPages > 1 && <div className={styles.pagination}><button className={styles.smallButton} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><strong>Pagina {currentPage} de {totalPages}</strong><button className={styles.smallButton} disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></div>}
     </Panel>
   );
 }

@@ -786,6 +786,51 @@
   border-bottom: 1px solid #e6d3bd;
 }
 
+.stockSearchBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #d7bea1;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff5e8;
+}
+
+.stockSearchBar input {
+  min-height: 44px;
+  background: #fff;
+}
+
+.stockSearchBar span {
+  min-width: 96px;
+  color: #6f5846;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+  border-top: 1px solid #e6d3bd;
+  padding-top: 16px;
+}
+
+.pagination strong {
+  min-width: 120px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .alertPanel {
   border-left: 5px solid #a33c2b;
   background: #fff7ed;
@@ -1319,6 +1364,15 @@
 
   .barcodeEditor {
     grid-template-columns: 1fr;
+  }
+
+  .stockSearchBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .stockSearchBar span {
+    text-align: left;
   }
 
   .topbar {
