@@ -52,7 +52,21 @@ label {
   display: none;
 }
 
+@page {
+  size: 58mm auto;
+  margin: 0;
+}
+
 @media print {
+  html,
+  body {
+    width: 58mm;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
   body * {
     visibility: hidden;
   }
@@ -67,9 +81,76 @@ label {
     position: absolute;
     left: 0;
     top: 0;
-    width: 78mm;
-    padding: 8mm;
+    width: 58mm;
+    min-height: 0;
+    padding: 3mm;
+    overflow: hidden;
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.3;
     color: #000;
+    background: #fff;
+  }
+
+  #printTicket header,
+  #printTicket footer {
+    text-align: center;
+  }
+
+  #printTicket h2 {
+    margin: 0 0 1.5mm;
+    font-size: 15px;
+    line-height: 1.1;
+  }
+
+  #printTicket p {
+    margin: 0.7mm 0;
+    overflow-wrap: anywhere;
+  }
+
+  #printTicket hr {
+    margin: 2mm 0;
+    border: 0;
+    border-top: 1px dashed #000;
+  }
+
+  #printTicket .ticketMeta {
+    display: grid;
+    gap: 0.4mm;
+  }
+
+  #printTicket .ticketItems {
+    display: grid;
+    gap: 2mm;
+  }
+
+  #printTicket .ticketItem {
+    display: grid;
+    gap: 0.7mm;
+    overflow-wrap: anywhere;
+  }
+
+  #printTicket .ticketItem > div,
+  #printTicket .ticketTotal {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2mm;
+  }
+
+  #printTicket .ticketItem > div strong,
+  #printTicket .ticketTotal strong {
+    white-space: nowrap;
+  }
+
+  #printTicket .ticketTotal {
+    font-size: 14px;
+  }
+
+  #printTicket footer {
+    margin-top: 3mm;
+    padding-top: 2mm;
+    border-top: 1px dashed #000;
+    overflow-wrap: anywhere;
   }
 }

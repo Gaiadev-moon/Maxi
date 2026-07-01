@@ -760,7 +760,7 @@ function printTicket(settings: AppState["settings"], sale: Sale) {
   old?.remove();
   const ticket = document.createElement("section");
   ticket.id = "printTicket";
-  ticket.innerHTML = `<h2>${settings.businessName}</h2><p>${settings.businessAddress}</p><p>${settings.businessPhone}</p><hr><p>Ticket: ${sale.ticketNumber}</p><p>Fecha: ${date(sale.createdAt)}</p><p>Area: ${labelArea(sale.area)}</p><p>Cliente: ${sale.customer}</p><hr>${sale.items.map((item) => `<p>${item.name}<br>${item.qty} x ${money(item.price)} = ${money(item.qty * item.price)}</p>`).join("")}<hr><h3>Total: ${money(sale.total)}</h3><p>Pago: ${sale.payment}</p><p>${settings.ticketFooter}</p>`;
+  ticket.innerHTML = `<header><h2>${settings.businessName}</h2><p>${settings.businessAddress}</p>${settings.businessPhone ? `<p>${settings.businessPhone}</p>` : ""}</header><hr><div class="ticketMeta"><p>Ticket: ${sale.ticketNumber}</p><p>Fecha: ${date(sale.createdAt)}</p><p>Area: ${labelArea(sale.area)}</p><p>Cliente: ${sale.customer}</p></div><hr><div class="ticketItems">${sale.items.map((item) => `<div class="ticketItem"><strong>${item.name}</strong><div><span>${item.qty} x ${money(item.price)}</span><strong>${money(item.qty * item.price)}</strong></div></div>`).join("")}</div><hr><div class="ticketTotal"><span>TOTAL</span><strong>${money(sale.total)}</strong></div><p>Pago: ${sale.payment}</p><footer>${settings.ticketFooter}</footer>`;
   document.body.appendChild(ticket);
-  window.print();
+  window.requestAnimationFrame(() => window.print());
 }
