@@ -141,7 +141,6 @@ export default function Home() {
   const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
   const barSales = state.sales.filter((sale) => sale.area === "bar");
   const todayDrugstoreSales = todaySales.filter((sale) => sale.area === "drugstore");
-  const todayBarSales = todaySales.filter((sale) => sale.area === "bar");
   const openTables = state.tables.filter((table) => table.items.length);
   const lowDrugstoreStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
   const selectedTable = state.tables.find((table) => table.id === selectedTableId);
@@ -385,17 +384,6 @@ export default function Home() {
 
         {view === "bar" && (
           <>
-            <ModuleHeader
-              tone="bar"
-              label="Modulo Bar"
-              title="Mesas, pedidos y menu"
-              description="Esta seccion no descuenta stock: controla que se vende, estados de mesa y tickets B separados."
-              stats={[
-                ["Hoy", money(todayBarSales.reduce((sum, sale) => sum + sale.total, 0))],
-                ["Tickets", String(todayBarSales.length)],
-                ["Mesas", String(openTables.length)],
-              ]}
-            />
             <SegmentedControl
               tone="bar"
               options={[
@@ -482,26 +470,6 @@ export default function Home() {
 
       {editingProduct && <ProductModal product={editingProduct} onCancel={() => setEditingProduct(null)} onSave={saveProduct} />}
     </div>
-  );
-}
-
-function ModuleHeader({ tone, label, title, description, stats }: { tone: "drugstore" | "bar"; label: string; title: string; description: string; stats: [string, string][] }) {
-  return (
-    <section className={`${styles.moduleHeader} ${tone === "bar" ? styles.barHeader : styles.drugstoreHeader}`}>
-      <div>
-        <span>{label}</span>
-        <h2>{title}</h2>
-        <p>{description}</p>
-      </div>
-      <div className={styles.moduleStats}>
-        {stats.map(([statLabel, value]) => (
-          <div key={statLabel}>
-            <small>{statLabel}</small>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
