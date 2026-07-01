@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import type { Session } from "@supabase/supabase-js";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import styles from "./page.module.css";
 
 type Area = "drugstore" | "bar";
@@ -59,8 +61,6 @@ type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
 type DrugstoreOption = "venta" | "stock";
 type BarOption = "mesas" | "menu" | "venta";
 
-const storageKey = "al_toque_production_v1";
-
 const seedState: AppState = {
   settings: {
     businessName: "Al toque",
@@ -93,6 +93,10 @@ const blankProduct: Product = {
 
 export default function Home() {
   const [state, setState] = useState<AppState>(seedState);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [syncError, setSyncError] = useState("");
   const [view, setView] = useState<View>("dashboard");
   const [drugstoreOption, setDrugstoreOption] = useState<DrugstoreOption>("venta");
   const [barOption, setBarOption] = useState<BarOption>("mesas");
@@ -110,21 +114,59 @@ export default function Home() {
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = normalizeState(JSON.parse(saved) as AppState);
-        setState(parsed);
-        setSelectedTableId(parsed.tables[0]?.id ?? "");
-      } catch {
-        setState(seedState);
-      }
+    if (!isSupabaseConfigured) {
+      setAuthLoading(false);
+      setDataLoading(false);
+      return;
     }
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(state));
-  }, [state]);
+    if (!session) {
+      setDataLoading(false);
+      return;
+    }
+    let active = true;
+    let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      try {
+        const remoteState = await loadRemoteState();
+        if (!active) return;
+        setState(remoteState);
+        setSelectedTableId((current) => remoteState.tables.some((table) => table.id === current) ? current : (remoteState.tables[0]?.id ?? ""));
+        setSyncError("");
+      } catch {
+        if (active) setSyncError("No se pudo conectar con Supabase.");
+      } finally {
+        if (active) setDataLoading(false);
+      }
+    };
+    const scheduleRefresh = () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => void refresh(), 120);
+    };
+    void refresh();
+    const channel = supabase.channel("al-toque-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bar_tables" }, scheduleRefresh)
+      .subscribe();
+    return () => {
+      active = false;
+      if (reloadTimer) clearTimeout(reloadTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [session]);
 
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
   const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
@@ -147,7 +189,10 @@ export default function Home() {
   const [title, subtitle] = viewCopy[view];
 
   function mutate(next: AppState) {
+    const previous = state;
     setState(next);
+    setSyncError("");
+    void persistStateChanges(previous, next).catch(() => setSyncError("No se pudieron guardar los cambios."));
   }
 
   function addLine(productId: string, target: "drugstoreCart" | "barCart" | "table") {
@@ -324,6 +369,11 @@ export default function Home() {
     setStockProduct(null);
   }
 
+  if (!isSupabaseConfigured) return <SystemMessage title="Falta configurar Supabase" text="Agrega las variables de Supabase para iniciar el sistema." />;
+  if (authLoading) return <SystemMessage title="Iniciando" text="Conectando con el sistema..." />;
+  if (!session) return <LoginScreen />;
+  if (dataLoading) return <SystemMessage title="Cargando datos" text="Preparando productos, mesas y ventas..." />;
+
   return (
     <div className={styles.shell}>
       <main className={styles.main}>
@@ -342,8 +392,11 @@ export default function Home() {
             {view !== "dashboard" && <button className={`${styles.textButton} ${styles.homeButton}`} onClick={() => setView("dashboard")}>Inicio</button>}
             <button className={styles.textButton} onClick={() => setView("reports")}>Reportes</button>
             <button className={styles.textButton} onClick={() => setView("settings")}>Ajustes</button>
+            <button className={styles.textButton} onClick={() => void supabase.auth.signOut()}>Salir</button>
           </div>
         </header>
+
+        {syncError && <div className={styles.syncError}>{syncError}</div>}
 
         {view === "dashboard" && (
           <>
@@ -521,6 +574,37 @@ export default function Home() {
       {stockProduct && <StockModal product={stockProduct} onCancel={() => setStockProduct(null)} onSave={(quantity) => addStock(stockProduct.id, quantity)} />}
     </div>
   );
+}
+
+function LoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  return (
+    <main className={styles.accessPage}>
+      <form className={styles.accessPanel} onSubmit={async (event) => {
+        event.preventDefault();
+        setLoading(true);
+        setError("");
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) setError("Correo o contrasena incorrectos.");
+        setLoading(false);
+      }}>
+        <Image className={styles.accessLogo} src="/al-toque-logo.png" alt="Al toque" width={104} height={104} priority />
+        <div><span>Acceso del personal</span><h1>Al toque</h1></div>
+        <label>Correo<input required type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+        <label>Contrasena<input required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+        {error && <p className={styles.formError}>{error}</p>}
+        <button className={styles.primaryButton} disabled={loading}>{loading ? "Ingresando..." : "Ingresar"}</button>
+      </form>
+    </main>
+  );
+}
+
+function SystemMessage({ title, text }: { title: string; text: string }) {
+  return <main className={styles.accessPage}><section className={styles.systemMessage}><Image className={styles.accessLogo} src="/al-toque-logo.png" alt="Al toque" width={88} height={88} priority /><h1>{title}</h1><p>{text}</p></section></main>;
 }
 
 function SegmentedControl({ options, value, onChange, tone }: { options: [string, string][]; value: string; onChange: (value: string) => void; tone?: "drugstore" | "bar" }) {
@@ -761,6 +845,63 @@ function formatName(value: string) {
 
 function numberValue(value: string) {
   return value === "" ? 0 : Number(value);
+}
+
+async function loadRemoteState(): Promise<AppState> {
+  const [settingsResult, productsResult, salesResult, tablesResult] = await Promise.all([
+    supabase.from("app_settings").select("payload").eq("id", "business").maybeSingle(),
+    supabase.from("products").select("payload"),
+    supabase.from("sales").select("payload").order("created_at", { ascending: true }),
+    supabase.from("bar_tables").select("payload"),
+  ]);
+  const error = settingsResult.error || productsResult.error || salesResult.error || tablesResult.error;
+  if (error) throw error;
+
+  let settings = settingsResult.data?.payload as AppState["settings"] | undefined;
+  if (!settings) {
+    settings = seedState.settings;
+    const { error: settingsError } = await supabase.from("app_settings").upsert({ id: "business", payload: settings, updated_at: new Date().toISOString() });
+    if (settingsError) throw settingsError;
+  }
+
+  return normalizeState({
+    settings,
+    products: (productsResult.data ?? []).map((row) => row.payload as Product),
+    sales: (salesResult.data ?? []).map((row) => row.payload as Sale),
+    tables: (tablesResult.data ?? []).map((row) => row.payload as TableOrder),
+  });
+}
+
+async function persistStateChanges(previous: AppState, next: AppState) {
+  if (JSON.stringify(previous.settings) !== JSON.stringify(next.settings)) {
+    const { error } = await supabase.from("app_settings").upsert({ id: "business", payload: next.settings, updated_at: new Date().toISOString() });
+    if (error) throw error;
+  }
+  await Promise.all([
+    syncRows("products", previous.products, next.products),
+    syncRows("sales", previous.sales, next.sales),
+    syncRows("bar_tables", previous.tables, next.tables),
+  ]);
+}
+
+async function syncRows<T extends { id: string }>(table: "products" | "sales" | "bar_tables", previous: T[], next: T[]) {
+  const previousById = new Map(previous.map((item) => [item.id, item]));
+  const changed = next.filter((item) => JSON.stringify(previousById.get(item.id)) !== JSON.stringify(item));
+  const nextIds = new Set(next.map((item) => item.id));
+  const deletedIds = previous.filter((item) => !nextIds.has(item.id)).map((item) => item.id);
+
+  if (changed.length) {
+    const now = new Date().toISOString();
+    const rows = changed.map((item) => table === "sales"
+      ? { id: item.id, payload: item, created_at: (item as unknown as Sale).createdAt }
+      : { id: item.id, payload: item, updated_at: now });
+    const { error } = await supabase.from(table).upsert(rows);
+    if (error) throw error;
+  }
+  if (deletedIds.length) {
+    const { error } = await supabase.from(table).delete().in("id", deletedIds);
+    if (error) throw error;
+  }
 }
 
 function printTicket(settings: AppState["settings"], sale: Sale) {
