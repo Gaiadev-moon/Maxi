@@ -2,17 +2,18 @@
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: 100vh;
-  background: #f5f7f4;
-  color: #1f2a24;
+  background: #f7f0e6;
+  color: #2b1a10;
 }
 
 .sidebar {
-  background: #1f2a24;
-  color: #fff;
+  background: #21140d;
+  color: #fff3d2;
   padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 26px;
+  border-right: 1px solid rgba(201, 151, 75, 0.28);
 }
 
 .brand {
@@ -21,15 +22,13 @@
   gap: 12px;
 }
 
-.brandMark {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: #f2c14e;
-  color: #1f2a24;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
+.brandLogo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #f7dca5;
+  box-shadow: 0 0 0 4px rgba(201, 151, 75, 0.16);
 }
 
 .brand strong,
@@ -50,12 +49,12 @@
 .listItem span,
 .tableCard span,
 .cartItem span {
-  color: #66736c;
+  color: #856a55;
   font-size: 13px;
 }
 
 .brand span {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 243, 210, 0.72);
 }
 
 .nav {
@@ -68,15 +67,15 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.76);
+  color: rgba(255, 243, 210, 0.76);
   text-align: left;
   padding: 12px 14px;
 }
 
 .navItem:hover,
 .navItem.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: rgba(201, 151, 75, 0.16);
+  color: #fff3d2;
 }
 
 .main {
@@ -116,18 +115,18 @@
 
 .topbar p {
   margin: 6px 0 0;
-  color: #66736c;
+  color: #856a55;
 }
 
 .iconButton {
   width: 42px;
   height: 42px;
-  border: 1px solid #dce4de;
+  border: 1px solid #e6d3bd;
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #fff;
-  color: #1f2a24;
+  background: #fffaf2;
+  color: #2b1a10;
   font-weight: 800;
   font-size: 12px;
 }
@@ -141,14 +140,14 @@
 
 .moduleChoice {
   min-height: 150px;
-  border: 1px solid #dce4de;
+  border: 1px solid rgba(247, 220, 165, 0.32);
   border-radius: 8px;
   padding: 20px;
   text-align: left;
   display: grid;
   align-content: space-between;
   color: #fff;
-  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.12);
+  box-shadow: 0 18px 40px rgba(43, 26, 16, 0.16);
 }
 
 .moduleChoice span,
@@ -165,11 +164,11 @@
 }
 
 .drugstoreChoice {
-  background: #235f4c;
+  background: #3b2418;
 }
 
 .barChoice {
-  background: #7a342b;
+  background: #8f4a2f;
 }
 
 .moduleHeader {
@@ -181,7 +180,7 @@
   gap: 18px;
   align-items: end;
   color: #fff;
-  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.12);
+  box-shadow: 0 18px 40px rgba(43, 26, 16, 0.16);
 }
 
 .moduleHeader span,
@@ -202,11 +201,11 @@
 }
 
 .drugstoreHeader {
-  background: #235f4c;
+  background: #3b2418;
 }
 
 .barHeader {
-  background: #7a342b;
+  background: #8f4a2f;
 }
 
 .moduleStats {
@@ -241,32 +240,33 @@
   padding: 6px;
   width: fit-content;
   max-width: 100%;
-  border: 1px solid #dce4de;
+  border: 1px solid #e6d3bd;
   border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.06);
+  background: #fffaf2;
+  box-shadow: 0 14px 35px rgba(43, 26, 16, 0.08);
 }
 
 .segmentedControl button {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #66736c;
+  color: #856a55;
   padding: 9px 12px;
   font-weight: 800;
 }
 
 .segmentedControl .segmentActive {
-  background: #28785f;
-  color: #fff;
+  background: #c9974b;
+  color: #21140d;
 }
 
 .barTabs .segmentActive {
-  background: #a74837;
+  background: #8f4a2f;
+  color: #fff3d2;
 }
 
 .drugstoreTabs .segmentActive {
-  background: #28785f;
+  background: #c9974b;
 }
 
 .metricGrid,
@@ -289,10 +289,10 @@
 
 .metric,
 .panel {
-  background: #fff;
-  border: 1px solid #dce4de;
+  background: #fffaf2;
+  border: 1px solid #e6d3bd;
   border-radius: 8px;
-  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.08);
+  box-shadow: 0 14px 35px rgba(43, 26, 16, 0.08);
 }
 
 .metric {
@@ -300,7 +300,7 @@
 }
 
 .metric span {
-  color: #66736c;
+  color: #856a55;
   font-size: 13px;
 }
 
@@ -312,7 +312,7 @@
 
 .metricAlert strong,
 .low {
-  color: #b63d2f;
+  color: #a33c2b;
 }
 
 .panel {
@@ -366,9 +366,9 @@
 .tableCard,
 .listItem,
 .empty {
-  border: 1px solid #dce4de;
+  border: 1px solid #e6d3bd;
   border-radius: 8px;
-  background: #edf3ee;
+  background: #f4e6d3;
   padding: 12px;
 }
 
@@ -388,8 +388,8 @@
 }
 
 .selected {
-  border-color: #28785f;
-  background: #e7f4ed;
+  border-color: #c9974b;
+  background: #fff0cf;
 }
 
 .statusPill {
@@ -402,12 +402,12 @@
 
 .preparing {
   background: #fff2cc;
-  color: #8a5a00;
+  color: #7a4a00;
 }
 
 .delivered {
-  background: #dff3e8;
-  color: #1f6b4f;
+  background: #efe0c5;
+  color: #3b2418;
 }
 
 .statusActions {
@@ -418,18 +418,18 @@
 }
 
 .statusActions button {
-  border: 1px solid #dce4de;
+  border: 1px solid #e6d3bd;
   border-radius: 8px;
-  background: #fff;
-  color: #1f2a24;
+  background: #fffaf2;
+  color: #2b1a10;
   padding: 8px 11px;
   font-weight: 800;
 }
 
 .statusActions .statusActive {
-  background: #28785f;
-  color: #fff;
-  border-color: #28785f;
+  background: #c9974b;
+  color: #21140d;
+  border-color: #c9974b;
 }
 
 .cartList {
@@ -442,16 +442,16 @@
   grid-template-columns: 1fr auto;
   gap: 8px;
   align-items: center;
-  border-bottom: 1px solid #dce4de;
+  border-bottom: 1px solid #e6d3bd;
   padding-bottom: 10px;
 }
 
 .qtyControls button,
 .smallButton {
-  border: 1px solid #dce4de;
+  border: 1px solid #e6d3bd;
   border-radius: 8px;
-  background: #fff;
-  color: #1f2a24;
+  background: #fffaf2;
+  color: #2b1a10;
   min-width: 34px;
   min-height: 34px;
   padding: 6px 10px;
@@ -461,7 +461,7 @@
   display: grid;
   gap: 12px;
   margin-top: 14px;
-  border-top: 1px solid #dce4de;
+  border-top: 1px solid #e6d3bd;
   padding-top: 14px;
 }
 
@@ -477,8 +477,8 @@
 .primaryCompact {
   border: 0;
   border-radius: 8px;
-  background: #28785f;
-  color: #fff;
+  background: #c9974b;
+  color: #21140d;
   font-weight: 800;
 }
 
@@ -504,13 +504,13 @@
 .tableWrap th,
 .tableWrap td {
   padding: 12px 10px;
-  border-bottom: 1px solid #dce4de;
+  border-bottom: 1px solid #e6d3bd;
   text-align: left;
   vertical-align: middle;
 }
 
 .tableWrap th {
-  color: #66736c;
+  color: #856a55;
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -521,20 +521,20 @@
 
 .barTrack {
   height: 12px;
-  background: #edf3ee;
+  background: #f4e6d3;
   border-radius: 8px;
   overflow: hidden;
 }
 
 .barFill {
   height: 100%;
-  background: #28785f;
+  background: #c9974b;
 }
 
 .empty {
-  color: #66736c;
+  color: #856a55;
   border-style: dashed;
-  background: #fff;
+  background: #fffaf2;
 }
 
 .modalBackdrop {
@@ -543,18 +543,18 @@
   z-index: 20;
   display: grid;
   place-items: center;
-  background: rgba(31, 42, 36, 0.45);
+  background: rgba(43, 26, 16, 0.58);
   padding: 14px;
 }
 
 .modal {
   width: min(520px, 100%);
-  background: #fff;
+  background: #fffaf2;
   border-radius: 8px;
   padding: 20px;
   display: grid;
   gap: 14px;
-  box-shadow: 0 14px 35px rgba(31, 42, 36, 0.18);
+  box-shadow: 0 14px 35px rgba(43, 26, 16, 0.18);
 }
 
 .formGrid {

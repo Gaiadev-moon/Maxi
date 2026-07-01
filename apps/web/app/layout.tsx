@@ -12,8 +12,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Maxi - Drugstore y Bar",
-  description: "Sistema local de stock, tickets, menu y pedidos por mesa.",
+  title: "Al toque - Gestion",
+  description: "Sistema local para bar, cafeteria, drugstore, tickets y pedidos por mesa.",
 };
 
 export default function RootLayout({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import styles from "./page.module.css";
 
 type Area = "drugstore" | "bar";
@@ -62,7 +63,7 @@ const storageKey = "maxi_drugstore_bar_v1";
 
 const seedState: AppState = {
   settings: {
-    businessName: "Drugstore y Bar",
+    businessName: "Al toque",
     businessAddress: "Direccion del local",
     businessPhone: "",
     ticketFooter: "Gracias por su compra",
@@ -338,10 +339,10 @@ export default function Home() {
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <div className={styles.brandMark}>MX</div>
+          <Image className={styles.brandLogo} src="/al-toque-logo.png" alt="Al toque" width={72} height={72} priority />
           <div>
-            <strong>Maxi</strong>
-            <span>Drugstore + Bar</span>
+            <strong>Al toque</strong>
+            <span>Bar · Cafeteria</span>
           </div>
         </div>
         <nav className={styles.nav}>
