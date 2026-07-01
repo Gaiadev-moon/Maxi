@@ -59,31 +59,18 @@ type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
 type DrugstoreOption = "venta" | "stock";
 type BarOption = "mesas" | "menu" | "venta";
 
-const storageKey = "maxi_drugstore_bar_v1";
+const storageKey = "al_toque_production_v1";
 
 const seedState: AppState = {
   settings: {
     businessName: "Al toque",
-    businessAddress: "Direccion del local",
+    businessAddress: "",
     businessPhone: "",
     ticketFooter: "Gracias por su compra",
   },
-  products: [
-    { id: "p-coca", name: "Coca Cola 500ml", category: "Bebidas", area: "drugstore", price: 1500, stock: 24, min: 6 },
-    { id: "p-agua", name: "Agua mineral", category: "Bebidas", area: "drugstore", price: 950, stock: 18, min: 6 },
-    { id: "p-alfajor", name: "Alfajor triple", category: "Golosinas", area: "drugstore", price: 1200, stock: 30, min: 8 },
-    { id: "p-cigarrillos", name: "Cigarrillos", category: "Kiosco", area: "drugstore", price: 2800, stock: 12, min: 4 },
-    { id: "p-cafe", name: "Cafe", category: "Cafeteria", area: "bar", price: 1800, stock: 100, min: 10 },
-    { id: "p-lomito", name: "Lomito completo", category: "Comida", area: "bar", price: 6800, stock: 50, min: 8 },
-    { id: "p-pizza", name: "Pizza muzzarella", category: "Comida", area: "bar", price: 7400, stock: 40, min: 8 },
-    { id: "p-cerveza", name: "Cerveza tirada", category: "Bebidas bar", area: "bar", price: 2600, stock: 80, min: 12 },
-  ],
+  products: [],
   sales: [],
-  tables: [
-    { id: "t-1", name: "Mesa 1", status: "vacio", items: [] },
-    { id: "t-2", name: "Mesa 2", status: "vacio", items: [] },
-    { id: "t-3", name: "Mesa 3", status: "vacio", items: [] },
-  ],
+  tables: [],
 };
 
 const viewCopy: Record<View, [string, string]> = {
