@@ -363,7 +363,7 @@ export default function Home() {
                 <div className={styles.drugstoreSaleLayout}>
                   <Panel title="Productos" variant="catalog">
                     <input type="search" placeholder="Buscar producto..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
-                    <ProductGrid products={filteredDrugstoreSaleProducts} onPick={(id) => addLine(id, "drugstoreCart")} showStock />
+                    <ProductGrid products={filteredDrugstoreSaleProducts} onPick={(id) => addLine(id, "drugstoreCart")} showStock hideCategory />
                   </Panel>
                   <SaleTicket cart={drugstoreCart} customer={drugstoreCustomer} payment={drugstorePayment} cartSum={drugstoreCartSum} setCart={setDrugstoreCart} setCustomer={setDrugstoreCustomer} setPayment={setDrugstorePayment} onQty={(id, delta) => changeQty(id, delta, "drugstoreCart")} onFinish={() => finishSale("drugstore")} />
                 </div>
@@ -377,6 +377,7 @@ export default function Home() {
                     onEdit={setEditingProduct}
                     onDelete={deleteProduct}
                     variant="inventory"
+                    hideCategory
                   />
                   {lowDrugstoreStock.length > 0 && (
                     <Panel title="Necesitan reposicion" variant="alert">
@@ -526,17 +527,17 @@ function SaleTicket({
   );
 }
 
-function ProductTable({ title, products, onAdd, onEdit, onDelete, menuOnly = false, variant }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; menuOnly?: boolean; variant?: "inventory" }) {
+function ProductTable({ title, products, onAdd, onEdit, onDelete, menuOnly = false, variant, hideCategory = false }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; menuOnly?: boolean; variant?: "inventory"; hideCategory?: boolean }) {
   return (
     <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>} variant={variant}>
       <div className={styles.tableWrap}>
         <table>
-          <thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th>{!menuOnly && <th>Stock</th>}{!menuOnly && <th>Min.</th>}<th /></tr></thead>
+          <thead><tr><th>Producto</th>{!hideCategory && <th>Categoria</th>}<th>Precio</th>{!menuOnly && <th>Stock</th>}{!menuOnly && <th>Min.</th>}<th /></tr></thead>
           <tbody>
             {products.map((product) => (
               <tr key={product.id}>
                 <td><strong>{product.name}</strong><br /><span>{labelArea(product.area)}</span></td>
-                <td>{product.category}</td>
+                {!hideCategory && <td>{product.category}</td>}
                 <td>{money(product.price)}</td>
                 {!menuOnly && <td className={product.stock <= product.min ? styles.low : ""}>{product.stock}</td>}
                 {!menuOnly && <td>{product.min}</td>}
@@ -555,11 +556,11 @@ function Panel({ title, action, children, sticky, narrow, variant }: { title: st
   return <section className={`${styles.panel} ${sticky ? styles.sticky : ""} ${narrow ? styles.narrow : ""} ${variantClass}`}><div className={styles.panelHeader}><h2>{title}</h2>{action}</div>{children}</section>;
 }
 
-function ProductGrid({ products, onPick, compact, showStock = false }: { products: Product[]; onPick: (id: string) => void; compact?: boolean; showStock?: boolean }) {
+function ProductGrid({ products, onPick, compact, showStock = false, hideCategory = false }: { products: Product[]; onPick: (id: string) => void; compact?: boolean; showStock?: boolean; hideCategory?: boolean }) {
   if (!products.length) return <div className={styles.empty}>Sin resultados.</div>;
   return <div className={`${styles.productGrid} ${compact ? styles.compactGrid : ""}`}>{products.map((product) => {
     const out = product.area === "drugstore" && product.stock <= 0;
-    return <button key={product.id} className={`${styles.productCard} ${out ? styles.out : ""}`} disabled={out} onClick={() => onPick(product.id)}><strong>{product.name}</strong><span>{product.category} - {money(product.price)}</span>{showStock && <span>Stock: {product.stock}</span>}</button>;
+    return <button key={product.id} className={`${styles.productCard} ${out ? styles.out : ""}`} disabled={out} onClick={() => onPick(product.id)}><strong>{product.name}</strong><span>{hideCategory ? money(product.price) : `${product.category} - ${money(product.price)}`}</span>{showStock && <span>Stock: {product.stock}</span>}</button>;
   })}</div>;
 }
 
@@ -588,7 +589,7 @@ function SettingsForm({ state, onSave }: { state: AppState; onSave: (settings: A
 function ProductModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (product: Product) => void }) {
   const [draft, setDraft] = useState(product);
   const isBar = draft.area === "bar";
-  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Categoria<input required value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label><label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price} onChange={(event) => setDraft({ ...draft, price: Number(event.target.value) })} /></label>{!isBar && <label>Stock<input type="number" min="0" value={draft.stock} onChange={(event) => setDraft({ ...draft, stock: Number(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min} onChange={(event) => setDraft({ ...draft, min: Number(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
+  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>{isBar && <label>Categoria<input required value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} /></label>}<label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price} onChange={(event) => setDraft({ ...draft, price: Number(event.target.value) })} /></label>{!isBar && <label>Stock<input type="number" min="0" value={draft.stock} onChange={(event) => setDraft({ ...draft, stock: Number(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min} onChange={(event) => setDraft({ ...draft, min: Number(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
 }
 
 function AreaReport({ sales }: { sales: Sale[] }) {
