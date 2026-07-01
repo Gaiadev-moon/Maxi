@@ -655,6 +655,68 @@
   background: #fff;
 }
 
+.barcodeScanner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  border: 2px solid #2f6b4f;
+  border-radius: 8px;
+  padding: 14px;
+  background: #edf5f0;
+}
+
+.barcodeScanner label {
+  color: #285c44;
+  font-weight: 900;
+}
+
+.barcodeScanner input {
+  min-height: 48px;
+  border-color: #77a58d;
+  background: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.scanButton {
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: #2f6b4f;
+  color: #fff;
+  padding: 10px 18px;
+  font-weight: 900;
+}
+
+.barcodeMessage {
+  margin-top: 10px;
+  border-left: 4px solid #c9974b;
+  padding: 9px 12px;
+  background: #fff4dc;
+  color: #5d4327;
+  font-weight: 800;
+}
+
+.catalogDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: #856a55;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.catalogDivider::before,
+.catalogDivider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #e6d3bd;
+}
+
 .catalogPanel .productGrid {
   gap: 14px;
   margin-top: 18px;
@@ -1186,6 +1248,10 @@
   .tableOrderColumn .panelHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .barcodeScanner {
+    grid-template-columns: 1fr;
   }
 
   .topbar {

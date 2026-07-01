@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
@@ -11,6 +11,7 @@ type Area = "drugstore" | "bar";
 type Product = {
   id: string;
   name: string;
+  barcode: string;
   category: string;
   area: Area;
   price: number;
@@ -84,6 +85,7 @@ const viewCopy: Record<View, [string, string]> = {
 const blankProduct: Product = {
   id: "",
   name: "",
+  barcode: "",
   category: "",
   area: "drugstore",
   price: 0,
@@ -103,6 +105,9 @@ export default function Home() {
   const [drugstoreCart, setDrugstoreCart] = useState<LineItem[]>([]);
   const [barCart, setBarCart] = useState<LineItem[]>([]);
   const [saleSearch, setSaleSearch] = useState("");
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [barcodeMessage, setBarcodeMessage] = useState("");
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [barSearch, setBarSearch] = useState("");
   const [drugstoreCustomer, setDrugstoreCustomer] = useState("");
   const [barCustomer, setBarCustomer] = useState("");
@@ -337,13 +342,35 @@ export default function Home() {
   }
 
   function saveProduct(product: Product) {
-    const normalized = { ...product, id: product.id || crypto.randomUUID(), price: Number(product.price), stock: Number(product.stock), min: Number(product.min) };
+    const barcode = product.barcode.trim();
+    const duplicateBarcode = barcode && state.products.some((entry) => entry.area === "drugstore" && entry.barcode === barcode && entry.id !== product.id);
+    if (duplicateBarcode) {
+      window.alert("Ese codigo de barras ya pertenece a otro producto.");
+      return;
+    }
+    const normalized = { ...product, barcode, id: product.id || crypto.randomUUID(), price: Number(product.price), stock: Number(product.stock), min: Number(product.min) };
     const exists = state.products.some((entry) => entry.id === normalized.id);
     mutate({
       ...state,
       products: exists ? state.products.map((entry) => entry.id === normalized.id ? normalized : entry) : [...state.products, normalized],
     });
     setEditingProduct(null);
+  }
+
+  function scanBarcode() {
+    const barcode = barcodeInput.trim();
+    if (!barcode) return;
+    const product = state.products.find((entry) => entry.area === "drugstore" && entry.barcode === barcode);
+    if (!product) {
+      setBarcodeMessage("Codigo no registrado.");
+    } else if (product.stock <= 0) {
+      setBarcodeMessage(`${product.name}: sin stock.`);
+    } else {
+      addLine(product.id, "drugstoreCart");
+      setBarcodeMessage(`${product.name} agregado al ticket.`);
+    }
+    setBarcodeInput("");
+    window.requestAnimationFrame(() => barcodeInputRef.current?.focus());
   }
 
   function deleteProduct(productId: string) {
@@ -432,6 +459,12 @@ export default function Home() {
               {drugstoreOption === "venta" && (
                 <div className={styles.drugstoreSaleLayout}>
                   <Panel title="Productos" variant="catalog">
+                    <form className={styles.barcodeScanner} onSubmit={(event) => { event.preventDefault(); scanBarcode(); }}>
+                      <label>Codigo de barras<input ref={barcodeInputRef} autoFocus autoComplete="off" inputMode="numeric" value={barcodeInput} onChange={(event) => { setBarcodeInput(event.target.value); setBarcodeMessage(""); }} placeholder="Escanear o escribir codigo" /></label>
+                      <button className={styles.scanButton}>Agregar</button>
+                    </form>
+                    {barcodeMessage && <p className={styles.barcodeMessage}>{barcodeMessage}</p>}
+                    <div className={styles.catalogDivider}><span>Buscar manualmente</span></div>
                     <input type="search" placeholder="Buscar producto..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
                     <ProductGrid products={filteredDrugstoreSaleProducts} onPick={(id) => addLine(id, "drugstoreCart")} showStock hideCategory />
                   </Panel>
@@ -662,7 +695,7 @@ function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, me
           <tbody>
             {products.map((product) => (
               <tr key={product.id}>
-                <td><strong>{product.name}</strong><br /><span>{labelArea(product.area)}</span></td>
+                <td><strong>{product.name}</strong><br /><span>{product.area === "drugstore" && product.barcode ? `Codigo: ${product.barcode}` : labelArea(product.area)}</span></td>
                 {!hideCategory && <td>{product.category}</td>}
                 <td>{money(product.price)}</td>
                 {!menuOnly && <td className={product.stock <= product.min ? styles.low : ""}>{product.stock}</td>}
@@ -716,7 +749,7 @@ function ProductModal({ product, onCancel, onSave }: { product: Product; onCance
   const [draft, setDraft] = useState(product);
   const isBar = draft.area === "bar";
   const isNewDrugstoreProduct = !isBar && !draft.id;
-  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: formatName(event.target.value) })} /></label><label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>{isNewDrugstoreProduct && <label>Stock inicial<input type="number" min="0" value={draft.stock || ""} onChange={(event) => setDraft({ ...draft, stock: numberValue(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min || ""} onChange={(event) => setDraft({ ...draft, min: numberValue(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
+  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: formatName(event.target.value) })} /></label>{!isBar && <label>Codigo de barras<input autoComplete="off" inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft({ ...draft, barcode: event.target.value.trim() })} placeholder="Escanear o escribir codigo" /></label>}<label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>{isNewDrugstoreProduct && <label>Stock inicial<input type="number" min="0" value={draft.stock || ""} onChange={(event) => setDraft({ ...draft, stock: numberValue(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min || ""} onChange={(event) => setDraft({ ...draft, min: numberValue(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
 }
 
 function StockModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (quantity: number) => void }) {
@@ -838,7 +871,7 @@ function compareTables(a: TableOrder, b: TableOrder) {
 function normalizeState(state: AppState): AppState {
   return {
     ...state,
-    products: state.products.map((product) => product.area === "bar" ? { ...product, stock: product.stock || 999999, min: 0 } : product),
+    products: state.products.map((product) => product.area === "bar" ? { ...product, barcode: product.barcode ?? "", stock: product.stock || 999999, min: 0 } : { ...product, barcode: product.barcode ?? "" }),
     sales: state.sales.map((sale, index) => ({ ...sale, ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
     tables: state.tables.map((table) => ({ ...table, status: table.items.length ? (table.status === "entregado" ? "entregado" : "preparacion") : "vacio" })),
   };
