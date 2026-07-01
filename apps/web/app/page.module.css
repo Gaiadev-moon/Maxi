@@ -814,18 +814,33 @@
 }
 
 .preparing {
-  background: #fff2cc;
-  color: #7a4a00;
+  background: #ffc83d;
+  color: #4d3100;
 }
 
 .delivered {
-  background: #efe0c5;
-  color: #3b2418;
+  background: #2f8f5b;
+  color: #fff;
 }
 
 .emptyStatus {
-  background: #e7e2dc;
-  color: #5f554d;
+  background: #6f7780;
+  color: #fff;
+}
+
+.emptyTableCard {
+  border-color: #aeb4b9;
+  background: #f0f2f3;
+}
+
+.preparingTableCard {
+  border: 2px solid #e1a900;
+  background: #fff3bf;
+}
+
+.deliveredTableCard {
+  border: 2px solid #2f8f5b;
+  background: #e3f5e9;
 }
 
 .statusActions {
@@ -845,9 +860,39 @@
 }
 
 .statusActions .statusActive {
-  background: #c9974b;
-  color: #21140d;
-  border-color: #c9974b;
+  border-width: 2px;
+  box-shadow: 0 0 0 3px rgba(43, 26, 16, 0.16);
+}
+
+.statusActions .emptyStatusButton {
+  border-color: #6f7780;
+  background: #e5e8ea;
+  color: #3e454b;
+}
+
+.statusActions .emptyStatusButton.statusActive {
+  background: #6f7780;
+  color: #fff;
+}
+
+.statusActions .preparingStatusButton {
+  border-color: #d49d00;
+  background: #ffc83d;
+  color: #4d3100;
+}
+
+.statusActions .preparingStatusButton.statusActive {
+  background: #f0b500;
+}
+
+.statusActions .deliveredStatusButton {
+  border-color: #26764a;
+  background: #2f8f5b;
+  color: #fff;
+}
+
+.statusActions .deliveredStatusButton.statusActive {
+  background: #26764a;
 }
 
 .statusActions button:disabled {

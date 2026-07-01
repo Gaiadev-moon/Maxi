@@ -480,12 +480,12 @@ export default function Home() {
               <div className={styles.tablesWorkspace}>
                 <Panel title="Mesas" action={<button className={styles.primaryCompact} onClick={() => {
                   const table = { id: crypto.randomUUID(), name: nextTableName(state.tables), status: "vacio" as TableStatus, items: [] };
-                  mutate({ ...state, tables: [...state.tables, table] });
+                  mutate({ ...state, tables: [...state.tables, table].sort(compareTables) });
                   setSelectedTableId(table.id);
                 }}>Nueva mesa</button>}>
                   <div className={styles.tableGrid}>
                     {state.tables.map((table) => (
-                      <button key={table.id} className={`${styles.tableCard} ${selectedTableId === table.id ? styles.selected : ""}`} onClick={() => setSelectedTableId(table.id)}>
+                      <button key={table.id} className={`${styles.tableCard} ${tableStatusCardClass(table.status)} ${selectedTableId === table.id ? styles.selected : ""}`} onClick={() => setSelectedTableId(table.id)}>
                         <strong>{table.name}</strong>
                         <span className={`${styles.statusPill} ${statusClass(table.status)}`}>{statusLabel(table.status)}</span>
                         <span>{table.items.length} items</span>
@@ -501,9 +501,9 @@ export default function Home() {
                   </Panel>
                   <Panel title={`Ticket - ${selectedTable?.name ?? "mesa"}`} action={<div className={styles.rowActions}><button className={styles.smallButton} onClick={() => selectedTable && deleteTable(selectedTable.id)}>Eliminar mesa</button><button className={styles.primaryCompact} onClick={closeTable}>Cobrar mesa</button></div>} sticky>
                     <div className={styles.statusActions}>
-                      <button disabled={Boolean(selectedTable?.items.length)} className={selectedTable?.status === "vacio" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "vacio")}>Vacio</button>
-                      <button disabled={!selectedTable?.items.length} className={selectedTable?.status === "preparacion" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "preparacion")}>En preparacion</button>
-                      <button disabled={!selectedTable?.items.length} className={selectedTable?.status === "entregado" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "entregado")}>Entregado</button>
+                      <button disabled={Boolean(selectedTable?.items.length)} className={`${styles.emptyStatusButton} ${selectedTable?.status === "vacio" ? styles.statusActive : ""}`} onClick={() => selectedTable && setTableStatus(selectedTable.id, "vacio")}>Vacio</button>
+                      <button disabled={!selectedTable?.items.length} className={`${styles.preparingStatusButton} ${selectedTable?.status === "preparacion" ? styles.statusActive : ""}`} onClick={() => selectedTable && setTableStatus(selectedTable.id, "preparacion")}>En preparacion</button>
+                      <button disabled={!selectedTable?.items.length} className={`${styles.deliveredStatusButton} ${selectedTable?.status === "entregado" ? styles.statusActive : ""}`} onClick={() => selectedTable && setTableStatus(selectedTable.id, "entregado")}>Entregado</button>
                     </div>
                     <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
                     <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
@@ -811,6 +811,11 @@ function statusClass(status: TableStatus) {
   return status === "entregado" ? styles.delivered : styles.preparing;
 }
 
+function tableStatusCardClass(status: TableStatus) {
+  if (status === "vacio") return styles.emptyTableCard;
+  return status === "entregado" ? styles.deliveredTableCard : styles.preparingTableCard;
+}
+
 function nextTicketNumber(sales: Sale[], area: Area) {
   const prefix = area === "bar" ? "B" : "D";
   const next = sales.filter((sale) => sale.area === area).length + 1;
@@ -818,11 +823,16 @@ function nextTicketNumber(sales: Sale[], area: Area) {
 }
 
 function nextTableName(tables: TableOrder[]) {
-  const highest = tables.reduce((max, table) => {
-    const number = Number(table.name.match(/\d+/)?.[0] ?? 0);
-    return Math.max(max, number);
-  }, 0);
-  return `Mesa ${highest + 1}`;
+  const used = new Set(tables.map((table) => Number(table.name.match(/\d+/)?.[0] ?? 0)));
+  let next = 1;
+  while (used.has(next)) next += 1;
+  return `Mesa ${next}`;
+}
+
+function compareTables(a: TableOrder, b: TableOrder) {
+  const numberA = Number(a.name.match(/\d+/)?.[0] ?? Number.MAX_SAFE_INTEGER);
+  const numberB = Number(b.name.match(/\d+/)?.[0] ?? Number.MAX_SAFE_INTEGER);
+  return numberA - numberB || a.name.localeCompare(b.name, "es");
 }
 
 function normalizeState(state: AppState): AppState {
@@ -868,7 +878,7 @@ async function loadRemoteState(): Promise<AppState> {
     settings,
     products: (productsResult.data ?? []).map((row) => row.payload as Product),
     sales: (salesResult.data ?? []).map((row) => row.payload as Sale),
-    tables: (tablesResult.data ?? []).map((row) => row.payload as TableOrder),
+    tables: (tablesResult.data ?? []).map((row) => row.payload as TableOrder).sort(compareTables),
   });
 }
 
