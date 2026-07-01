@@ -876,6 +876,37 @@
   font-weight: 800;
 }
 
+.stockButton {
+  min-height: 34px;
+  border: 1px solid #285c44;
+  border-radius: 8px;
+  background: #2f6b4f;
+  color: #fff;
+  padding: 7px 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.stockButton:hover {
+  background: #285c44;
+}
+
+.stockSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-left: 4px solid #2f6b4f;
+  padding: 12px 14px;
+  background: #edf5f0;
+}
+
+.stockSummary span {
+  color: #526b5d;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .primaryButton {
   padding: 13px 16px;
 }
