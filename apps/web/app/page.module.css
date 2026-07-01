@@ -1,19 +1,7 @@
 .shell {
-  display: grid;
-  grid-template-columns: 260px 1fr;
   min-height: 100vh;
   background: #f7f0e6;
   color: #2b1a10;
-}
-
-.sidebar {
-  background: #21140d;
-  color: #fff3d2;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 26px;
-  border-right: 1px solid rgba(201, 151, 75, 0.28);
 }
 
 .brand {
@@ -29,6 +17,13 @@
   object-fit: cover;
   border: 2px solid #f7dca5;
   box-shadow: 0 0 0 4px rgba(201, 151, 75, 0.16);
+}
+
+.logoButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 50%;
 }
 
 .brand strong,
@@ -57,29 +52,10 @@
   color: rgba(255, 243, 210, 0.72);
 }
 
-.nav {
-  display: grid;
-  gap: 8px;
-}
-
-.navItem {
-  width: 100%;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(255, 243, 210, 0.76);
-  text-align: left;
-  padding: 12px 14px;
-}
-
-.navItem:hover,
-.navItem.active {
-  background: rgba(201, 151, 75, 0.16);
-  color: #fff3d2;
-}
-
 .main {
-  padding: 26px;
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 24px;
   overflow: hidden;
 }
 
@@ -105,17 +81,36 @@
 
 .topbar {
   margin-bottom: 22px;
+  border: 1px solid #e6d3bd;
+  border-radius: 8px;
+  background: #fffaf2;
+  padding: 14px 16px;
+  box-shadow: 0 14px 35px rgba(43, 26, 16, 0.08);
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: clamp(28px, 3vw, 42px);
+  font-size: clamp(26px, 3vw, 40px);
   letter-spacing: 0;
 }
 
 .topbar p {
   margin: 6px 0 0;
   color: #856a55;
+}
+
+.headerBrand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.headerBrand span {
+  color: #c9974b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .iconButton {
@@ -131,18 +126,28 @@
   font-size: 12px;
 }
 
+.textButton {
+  min-height: 42px;
+  border: 1px solid #e6d3bd;
+  border-radius: 8px;
+  background: #fffaf2;
+  color: #2b1a10;
+  padding: 8px 12px;
+  font-weight: 900;
+}
+
 .moduleChoiceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 18px;
+  gap: 22px;
+  margin-bottom: 22px;
 }
 
 .moduleChoice {
-  min-height: 150px;
+  min-height: 280px;
   border: 1px solid rgba(247, 220, 165, 0.32);
   border-radius: 8px;
-  padding: 20px;
+  padding: 28px;
   text-align: left;
   display: grid;
   align-content: space-between;
@@ -158,9 +163,9 @@
 
 .moduleChoice strong {
   display: block;
-  font-size: 28px;
+  font-size: clamp(42px, 6vw, 78px);
   line-height: 1.1;
-  max-width: 420px;
+  max-width: 520px;
 }
 
 .drugstoreChoice {
@@ -574,30 +579,12 @@
 }
 
 @media (max-width: 920px) {
-  .shell,
   .metricGrid,
   .moduleChoiceGrid,
   .twoColumn,
   .workGrid,
   .moduleHeader {
     grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    padding: 14px;
-  }
-
-  .nav {
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    overflow: auto;
-  }
-
-  .navItem {
-    white-space: nowrap;
   }
 
   .sticky {
@@ -616,6 +603,16 @@
 
   .topbar {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topActions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .textButton {
+    flex: 1;
   }
 
   .metricGrid {
@@ -633,5 +630,9 @@
   .moduleChoice strong,
   .moduleHeader h2 {
     font-size: 24px;
+  }
+
+  .moduleChoice {
+    min-height: 190px;
   }
 }

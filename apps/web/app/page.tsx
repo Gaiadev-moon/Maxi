@@ -143,7 +143,6 @@ export default function Home() {
   const todayDrugstoreSales = todaySales.filter((sale) => sale.area === "drugstore");
   const todayBarSales = todaySales.filter((sale) => sale.area === "bar");
   const openTables = state.tables.filter((table) => table.items.length);
-  const lowStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
   const lowDrugstoreStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
   const selectedTable = state.tables.find((table) => table.id === selectedTableId);
   const filteredDrugstoreSaleProducts = filterProducts(state.products, "drugstore", saleSearch);
@@ -337,30 +336,22 @@ export default function Home() {
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <Image className={styles.brandLogo} src="/al-toque-logo.png" alt="Al toque" width={72} height={72} priority />
-          <div>
-            <strong>Al toque</strong>
-            <span>Bar · Cafeteria</span>
-          </div>
-        </div>
-        <nav className={styles.nav}>
-          {Object.entries(viewCopy).map(([key, copy]) => (
-            <button key={key} className={`${styles.navItem} ${view === key ? styles.active : ""}`} onClick={() => setView(key as View)}>
-              {copy[0]}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
       <main className={styles.main}>
         <header className={styles.topbar}>
-          <div>
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
+          <div className={styles.headerBrand}>
+            <button className={styles.logoButton} onClick={() => setView("dashboard")} aria-label="Volver al inicio">
+              <Image className={styles.brandLogo} src="/al-toque-logo.png" alt="Al toque" width={72} height={72} priority />
+            </button>
+            <div>
+              <span>Bar · Cafeteria</span>
+              <h1>{view === "dashboard" ? "Al toque" : title}</h1>
+              <p>{view === "dashboard" ? "Elegí con qué módulo trabajar." : subtitle}</p>
+            </div>
           </div>
           <div className={styles.topActions}>
+            {view !== "dashboard" && <button className={styles.textButton} onClick={() => setView("dashboard")}>Inicio</button>}
+            <button className={styles.textButton} onClick={() => setView("reports")}>Reportes</button>
+            <button className={styles.textButton} onClick={() => setView("settings")}>Ajustes</button>
             <button className={styles.iconButton} onClick={exportData} title="Exportar datos">EX</button>
             <label className={styles.iconButton} title="Importar datos">
               IM
@@ -373,31 +364,15 @@ export default function Home() {
           <>
             <div className={styles.moduleChoiceGrid}>
               <button className={`${styles.moduleChoice} ${styles.drugstoreChoice}`} onClick={() => setView("drugstore")}>
-                <span>Modulo Drugstore</span>
-                <strong>Stock y ventas de mostrador</strong>
+                <span>Entrar a</span>
+                <strong>Drugstore</strong>
                 <small>{money(todayDrugstoreSales.reduce((sum, sale) => sum + sale.total, 0))} vendidos hoy</small>
               </button>
               <button className={`${styles.moduleChoice} ${styles.barChoice}`} onClick={() => setView("bar")}>
-                <span>Modulo Bar</span>
-                <strong>Mesas, menu y barra</strong>
+                <span>Entrar a</span>
+                <strong>Bar</strong>
                 <small>{openTables.length} mesas con pedido</small>
               </button>
-            </div>
-            <div className={styles.metricGrid}>
-              <Metric label="Ventas hoy" value={money(todaySales.reduce((sum, sale) => sum + sale.total, 0))} />
-              <Metric label="Tickets hoy" value={String(todaySales.length)} />
-              <Metric label="Mesas abiertas" value={String(openTables.length)} />
-              <Metric label="Stock bajo" value={String(lowStock.length)} alert />
-            </div>
-            <div className={styles.twoColumn}>
-              <Panel title="Ultimas ventas">
-                <ListEmpty show={!state.sales.length} text="Todavia no hay ventas." />
-                {state.sales.slice(-5).reverse().map((sale) => <ListItem key={sale.id} title={`${sale.customer} - ${money(sale.total)}`} meta={`${date(sale.createdAt)} · ${labelArea(sale.area)} · ${sale.payment}`} />)}
-              </Panel>
-              <Panel title="Reposicion sugerida">
-                <ListEmpty show={!lowStock.length} text="No hay productos en stock bajo." />
-                {lowStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
-              </Panel>
             </div>
           </>
         )}
@@ -640,10 +615,6 @@ function ProductTable({ title, products, onAdd, onEdit, onDelete, menuOnly = fal
       </div>
     </Panel>
   );
-}
-
-function Metric({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
-  return <article className={`${styles.metric} ${alert ? styles.metricAlert : ""}`}><span>{label}</span><strong>{value}</strong></article>;
 }
 
 function Panel({ title, action, children, sticky, narrow }: { title: string; action?: React.ReactNode; children: React.ReactNode; sticky?: boolean; narrow?: boolean }) {
