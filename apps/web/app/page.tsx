@@ -346,40 +346,47 @@ export default function Home() {
         )}
 
         {view === "drugstore" && (
-          <>
-            <SegmentedControl
-              tone="drugstore"
-              options={[
-                ["venta", "Venta y tickets"],
-                ["stock", "Stock"],
-              ]}
-              value={drugstoreOption}
-              onChange={(value) => setDrugstoreOption(value as DrugstoreOption)}
-            />
-            {drugstoreOption === "venta" && (
-              <div className={styles.workGrid}>
-                <Panel title="Venta drugstore">
-                  <input type="search" placeholder="Buscar producto..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
-                  <ProductGrid products={filteredDrugstoreSaleProducts} onPick={(id) => addLine(id, "drugstoreCart")} showStock />
-                </Panel>
-                <SaleTicket cart={drugstoreCart} customer={drugstoreCustomer} payment={drugstorePayment} cartSum={drugstoreCartSum} setCart={setDrugstoreCart} setCustomer={setDrugstoreCustomer} setPayment={setDrugstorePayment} onQty={(id, delta) => changeQty(id, delta, "drugstoreCart")} onFinish={() => finishSale("drugstore")} />
-              </div>
-            )}
-            {drugstoreOption === "stock" && (
-              <ProductTable
-                title="Stock drugstore"
-                products={drugstoreProducts}
-                onAdd={() => setEditingProduct({ ...blankProduct, area: "drugstore" })}
-                onEdit={setEditingProduct}
-                onDelete={deleteProduct}
+          <section className={styles.drugstoreSection}>
+            <div className={styles.drugstoreNav}>
+              <SegmentedControl
+                tone="drugstore"
+                options={[
+                  ["venta", "Venta y tickets"],
+                  ["stock", "Stock"],
+                ]}
+                value={drugstoreOption}
+                onChange={(value) => setDrugstoreOption(value as DrugstoreOption)}
               />
-            )}
-            {drugstoreOption === "stock" && lowDrugstoreStock.length > 0 && (
-              <Panel title="Reposicion del drugstore">
-                {lowDrugstoreStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
-              </Panel>
-            )}
-          </>
+            </div>
+            <div className={styles.drugstoreContent}>
+              {drugstoreOption === "venta" && (
+                <div className={styles.drugstoreSaleLayout}>
+                  <Panel title="Productos" variant="catalog">
+                    <input type="search" placeholder="Buscar producto..." value={saleSearch} onChange={(event) => setSaleSearch(event.target.value)} />
+                    <ProductGrid products={filteredDrugstoreSaleProducts} onPick={(id) => addLine(id, "drugstoreCart")} showStock />
+                  </Panel>
+                  <SaleTicket cart={drugstoreCart} customer={drugstoreCustomer} payment={drugstorePayment} cartSum={drugstoreCartSum} setCart={setDrugstoreCart} setCustomer={setDrugstoreCustomer} setPayment={setDrugstorePayment} onQty={(id, delta) => changeQty(id, delta, "drugstoreCart")} onFinish={() => finishSale("drugstore")} />
+                </div>
+              )}
+              {drugstoreOption === "stock" && (
+                <div className={styles.inventoryLayout}>
+                  <ProductTable
+                    title="Inventario"
+                    products={drugstoreProducts}
+                    onAdd={() => setEditingProduct({ ...blankProduct, area: "drugstore" })}
+                    onEdit={setEditingProduct}
+                    onDelete={deleteProduct}
+                    variant="inventory"
+                  />
+                  {lowDrugstoreStock.length > 0 && (
+                    <Panel title="Necesitan reposicion" variant="alert">
+                      {lowDrugstoreStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
+                    </Panel>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
         )}
 
         {view === "bar" && (
@@ -507,7 +514,7 @@ function SaleTicket({
   onFinish: () => void;
 }) {
   return (
-    <Panel title="Ticket" action={<button className={styles.smallButton} onClick={() => setCart([])}>Vaciar</button>} sticky>
+    <Panel title="Ticket actual" action={<button className={styles.smallButton} onClick={() => setCart([])}>Vaciar</button>} sticky variant="ticket">
       <Cart items={cart} onQty={onQty} />
       <div className={styles.checkoutFooter}>
         <label>Cliente<input value={customer} onChange={(event) => setCustomer(event.target.value)} placeholder="Consumidor final" /></label>
@@ -519,9 +526,9 @@ function SaleTicket({
   );
 }
 
-function ProductTable({ title, products, onAdd, onEdit, onDelete, menuOnly = false }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; menuOnly?: boolean }) {
+function ProductTable({ title, products, onAdd, onEdit, onDelete, menuOnly = false, variant }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; menuOnly?: boolean; variant?: "inventory" }) {
   return (
-    <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>}>
+    <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>} variant={variant}>
       <div className={styles.tableWrap}>
         <table>
           <thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th>{!menuOnly && <th>Stock</th>}{!menuOnly && <th>Min.</th>}<th /></tr></thead>
@@ -543,8 +550,9 @@ function ProductTable({ title, products, onAdd, onEdit, onDelete, menuOnly = fal
   );
 }
 
-function Panel({ title, action, children, sticky, narrow }: { title: string; action?: React.ReactNode; children: React.ReactNode; sticky?: boolean; narrow?: boolean }) {
-  return <section className={`${styles.panel} ${sticky ? styles.sticky : ""} ${narrow ? styles.narrow : ""}`}><div className={styles.panelHeader}><h2>{title}</h2>{action}</div>{children}</section>;
+function Panel({ title, action, children, sticky, narrow, variant }: { title: string; action?: React.ReactNode; children: React.ReactNode; sticky?: boolean; narrow?: boolean; variant?: "catalog" | "ticket" | "inventory" | "alert" }) {
+  const variantClass = variant ? styles[`${variant}Panel`] : "";
+  return <section className={`${styles.panel} ${sticky ? styles.sticky : ""} ${narrow ? styles.narrow : ""} ${variantClass}`}><div className={styles.panelHeader}><h2>{title}</h2>{action}</div>{children}</section>;
 }
 
 function ProductGrid({ products, onPick, compact, showStock = false }: { products: Product[]; onPick: (id: string) => void; compact?: boolean; showStock?: boolean }) {
