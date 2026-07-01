@@ -343,7 +343,7 @@ export default function Home() {
     setSelectedTableId(remaining[0]?.id ?? "");
   }
 
-  function saveProduct(product: Product) {
+  async function saveProduct(product: Product) {
     const barcodes = [...new Set(product.barcodes.map((barcode) => barcode.trim()).filter(Boolean))];
     const duplicateBarcode = barcodes.find((barcode) => state.products.some((entry) => entry.area === "drugstore" && entry.barcodes.includes(barcode) && entry.id !== product.id));
     if (duplicateBarcode) {
@@ -351,11 +351,20 @@ export default function Home() {
       return;
     }
     const normalized = { ...product, barcodes, id: product.id || crypto.randomUUID(), price: Number(product.price), stock: Number(product.stock), min: Number(product.min) };
-    const exists = state.products.some((entry) => entry.id === normalized.id);
-    mutate({
-      ...state,
-      products: exists ? state.products.map((entry) => entry.id === normalized.id ? normalized : entry) : [...state.products, normalized],
+    const { error } = await supabase.from("products").upsert({ id: normalized.id, payload: normalized, updated_at: new Date().toISOString() });
+    if (error) {
+      setSyncError("No se pudo guardar el producto ni sus codigos.");
+      window.alert("No se pudo guardar. Revisa la conexion e intenta nuevamente.");
+      return;
+    }
+    setState((current) => {
+      const exists = current.products.some((entry) => entry.id === normalized.id);
+      return {
+        ...current,
+        products: exists ? current.products.map((entry) => entry.id === normalized.id ? normalized : entry) : [...current.products, normalized],
+      };
     });
+    setSyncError("");
     setEditingProduct(null);
   }
 
@@ -768,7 +777,7 @@ function ProductModal({ product, onCancel, onSave }: { product: Product; onCance
   const addBarcode = () => {
     const barcode = barcodeInput.trim();
     if (!barcode) return;
-    if (!draft.barcodes.includes(barcode)) setDraft({ ...draft, barcodes: [...draft.barcodes, barcode] });
+    setDraft((current) => current.barcodes.includes(barcode) ? current : { ...current, barcodes: [...current.barcodes, barcode] });
     setBarcodeInput("");
   };
   return (
@@ -785,7 +794,7 @@ function ProductModal({ product, onCancel, onSave }: { product: Product; onCance
           <label>Codigos de barras<input autoComplete="off" inputMode="numeric" value={barcodeInput} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addBarcode(); } }} placeholder="Escanear o escribir codigo" /></label>
           <button type="button" className={styles.barcodeButton} onClick={addBarcode}>Agregar codigo</button>
         </div>}
-        {!isBar && draft.barcodes.length > 0 && <div className={styles.barcodeDraftList}>{draft.barcodes.map((barcode) => <div key={barcode}><span>{barcode}</span><button type="button" onClick={() => setDraft({ ...draft, barcodes: draft.barcodes.filter((entry) => entry !== barcode) })}>Quitar</button></div>)}</div>}
+        {!isBar && draft.barcodes.length > 0 && <div className={styles.barcodeDraftList}>{draft.barcodes.map((barcode) => <div key={barcode}><span>{barcode}</span><button type="button" onClick={() => setDraft((current) => ({ ...current, barcodes: current.barcodes.filter((entry) => entry !== barcode) }))}>Quitar</button></div>)}</div>}
         <label>Area<input value={labelArea(draft.area)} disabled /></label>
         <div className={isBar ? styles.formGridSingle : styles.formGrid}>
           <label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>
