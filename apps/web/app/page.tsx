@@ -352,7 +352,7 @@ export default function Home() {
                 tone="drugstore"
                 options={[
                   ["venta", "Venta y tickets"],
-                  ["stock", "Stock"],
+                  ["stock", lowDrugstoreStock.length > 0 ? `Control de stock - ${lowDrugstoreStock.length} alertas` : "Control de stock"],
                 ]}
                 value={drugstoreOption}
                 onChange={(value) => setDrugstoreOption(value as DrugstoreOption)}
@@ -484,7 +484,7 @@ function SegmentedControl({ options, value, onChange, tone }: { options: [string
   return (
     <div className={`${styles.segmentedControl} ${tone === "bar" ? styles.barTabs : styles.drugstoreTabs}`}>
       {options.map(([key, label]) => (
-        <button key={key} className={value === key ? styles.segmentActive : ""} onClick={() => onChange(key)}>
+        <button key={key} className={`${value === key ? styles.segmentActive : ""} ${key === "stock" ? styles.stockTab : ""}`} onClick={() => onChange(key)}>
           {label}
         </button>
       ))}

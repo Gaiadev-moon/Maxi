@@ -303,9 +303,22 @@
   color: #e6d3bd;
 }
 
+.drugstoreNav .segmentedControl .stockTab {
+  border: 2px solid #c9974b;
+  background: #fffaf2;
+  color: #3b2418;
+  font-weight: 900;
+}
+
 .drugstoreNav .segmentedControl .segmentActive {
   background: #c9974b;
   color: #21140d;
+}
+
+.drugstoreNav .segmentedControl .stockTab.segmentActive {
+  border-color: #fff0cf;
+  background: #c9974b;
+  box-shadow: inset 0 0 0 2px #3b2418;
 }
 
 .drugstoreContent {
