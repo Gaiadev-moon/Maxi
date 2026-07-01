@@ -86,8 +86,9 @@ label {
     padding: 3mm;
     overflow: hidden;
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    font-size: 10px;
-    line-height: 1.3;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.35;
     color: #000;
     background: #fff;
   }
@@ -99,7 +100,8 @@ label {
 
   #printTicket h2 {
     margin: 0 0 1.5mm;
-    font-size: 15px;
+    font-size: 17px;
+    font-weight: 900;
     line-height: 1.1;
   }
 
@@ -144,7 +146,8 @@ label {
   }
 
   #printTicket .ticketTotal {
-    font-size: 14px;
+    font-size: 16px;
+    font-weight: 900;
   }
 
   #printTicket footer {
