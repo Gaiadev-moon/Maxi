@@ -34,7 +34,7 @@ type Sale = {
   total: number;
 };
 
-type TableStatus = "preparacion" | "entregado";
+type TableStatus = "vacio" | "preparacion" | "entregado";
 
 type TableOrder = {
   id: string;
@@ -80,9 +80,9 @@ const seedState: AppState = {
   ],
   sales: [],
   tables: [
-    { id: "t-1", name: "Mesa 1", status: "preparacion", items: [] },
-    { id: "t-2", name: "Mesa 2", status: "preparacion", items: [] },
-    { id: "t-3", name: "Mesa 3", status: "preparacion", items: [] },
+    { id: "t-1", name: "Mesa 1", status: "vacio", items: [] },
+    { id: "t-2", name: "Mesa 2", status: "vacio", items: [] },
+    { id: "t-3", name: "Mesa 3", status: "vacio", items: [] },
   ],
 };
 
@@ -188,7 +188,7 @@ export default function Home() {
 
     mutate({
       ...state,
-      tables: state.tables.map((table) => table.id === selectedTableId ? { ...table, items: apply(table.items) } : table),
+      tables: state.tables.map((table) => table.id === selectedTableId ? { ...table, status: "preparacion", items: apply(table.items) } : table),
     });
   }
 
@@ -217,7 +217,11 @@ export default function Home() {
 
     mutate({
       ...state,
-      tables: state.tables.map((table) => table.id === selectedTableId ? { ...table, items: apply(table.items) } : table),
+      tables: state.tables.map((table) => {
+        if (table.id !== selectedTableId) return table;
+        const items = apply(table.items);
+        return { ...table, status: items.length ? table.status : "vacio", items };
+      }),
     });
   }
 
@@ -278,7 +282,7 @@ export default function Home() {
       ...state,
       products: state.products,
       sales: [...state.sales, sale],
-      tables: state.tables.map((table) => table.id === selectedTable.id ? { ...table, status: "preparacion", items: [] } : table),
+      tables: state.tables.map((table) => table.id === selectedTable.id ? { ...table, status: "vacio", items: [] } : table),
     });
     setTimeout(() => printTicket(state.settings, sale), 50);
   }
@@ -288,6 +292,15 @@ export default function Home() {
       ...state,
       tables: state.tables.map((table) => table.id === tableId ? { ...table, status } : table),
     });
+  }
+
+  function deleteTable(tableId: string) {
+    const table = state.tables.find((entry) => entry.id === tableId);
+    if (!table) return;
+    if (table.items.length && !window.confirm(`La ${table.name} tiene un pedido. Queres eliminarla igualmente?`)) return;
+    const remaining = state.tables.filter((entry) => entry.id !== tableId);
+    mutate({ ...state, tables: remaining });
+    setSelectedTableId(remaining[0]?.id ?? "");
   }
 
   function saveProduct(product: Product) {
@@ -410,9 +423,9 @@ export default function Home() {
             </div>
             <div className={styles.barContent}>
             {barOption === "mesas" && (
-              <div className={styles.workGrid}>
+              <div className={styles.tablesWorkspace}>
                 <Panel title="Mesas" action={<button className={styles.primaryCompact} onClick={() => {
-                  const table = { id: crypto.randomUUID(), name: `Mesa ${state.tables.length + 1}`, status: "preparacion" as TableStatus, items: [] };
+                  const table = { id: crypto.randomUUID(), name: nextTableName(state.tables), status: "vacio" as TableStatus, items: [] };
                   mutate({ ...state, tables: [...state.tables, table] });
                   setSelectedTableId(table.id);
                 }}>Nueva mesa</button>}>
@@ -420,23 +433,28 @@ export default function Home() {
                     {state.tables.map((table) => (
                       <button key={table.id} className={`${styles.tableCard} ${selectedTableId === table.id ? styles.selected : ""}`} onClick={() => setSelectedTableId(table.id)}>
                         <strong>{table.name}</strong>
-                        <span className={`${styles.statusPill} ${table.status === "entregado" ? styles.delivered : styles.preparing}`}>{statusLabel(table.status)}</span>
+                        <span className={`${styles.statusPill} ${statusClass(table.status)}`}>{statusLabel(table.status)}</span>
                         <span>{table.items.length} items</span>
                         <span>{money(total(table.items))}</span>
                       </button>
                     ))}
                   </div>
                 </Panel>
-                <Panel title={`Pedido - ${selectedTable?.name ?? "mesa"}`} action={<button className={styles.smallButton} onClick={closeTable}>Cerrar mesa</button>} sticky>
-                  <input type="search" placeholder="Buscar en menu..." value={barSearch} onChange={(event) => setBarSearch(event.target.value)} />
-                  <div className={styles.statusActions}>
-                    <button className={selectedTable?.status === "preparacion" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "preparacion")}>En preparacion</button>
-                    <button className={selectedTable?.status === "entregado" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "entregado")}>Entregado</button>
-                  </div>
-                  <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact hideCategory />
-                  <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
-                  <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
-                </Panel>
+                <div className={styles.tableOrderColumn}>
+                  <Panel title={`Agregar al pedido - ${selectedTable?.name ?? "mesa"}`}>
+                    <input type="search" placeholder="Buscar en menu..." value={barSearch} onChange={(event) => setBarSearch(event.target.value)} />
+                    <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact hideCategory />
+                  </Panel>
+                  <Panel title={`Ticket - ${selectedTable?.name ?? "mesa"}`} action={<div className={styles.rowActions}><button className={styles.smallButton} onClick={() => selectedTable && deleteTable(selectedTable.id)}>Eliminar mesa</button><button className={styles.primaryCompact} onClick={closeTable}>Cobrar mesa</button></div>} sticky>
+                    <div className={styles.statusActions}>
+                      <button disabled={Boolean(selectedTable?.items.length)} className={selectedTable?.status === "vacio" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "vacio")}>Vacio</button>
+                      <button disabled={!selectedTable?.items.length} className={selectedTable?.status === "preparacion" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "preparacion")}>En preparacion</button>
+                      <button disabled={!selectedTable?.items.length} className={selectedTable?.status === "entregado" ? styles.statusActive : ""} onClick={() => selectedTable && setTableStatus(selectedTable.id, "entregado")}>Entregado</button>
+                    </div>
+                    <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
+                    <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
+                  </Panel>
+                </div>
               </div>
             )}
             {barOption === "menu" && (
@@ -692,7 +710,13 @@ function labelArea(area: Area) {
 }
 
 function statusLabel(status: TableStatus) {
+  if (status === "vacio") return "Vacio";
   return status === "entregado" ? "Entregado" : "En preparacion";
+}
+
+function statusClass(status: TableStatus) {
+  if (status === "vacio") return styles.emptyStatus;
+  return status === "entregado" ? styles.delivered : styles.preparing;
 }
 
 function nextTicketNumber(sales: Sale[], area: Area) {
@@ -701,12 +725,20 @@ function nextTicketNumber(sales: Sale[], area: Area) {
   return `${prefix}-${String(next).padStart(4, "0")}`;
 }
 
+function nextTableName(tables: TableOrder[]) {
+  const highest = tables.reduce((max, table) => {
+    const number = Number(table.name.match(/\d+/)?.[0] ?? 0);
+    return Math.max(max, number);
+  }, 0);
+  return `Mesa ${highest + 1}`;
+}
+
 function normalizeState(state: AppState): AppState {
   return {
     ...state,
     products: state.products.map((product) => product.area === "bar" ? { ...product, stock: product.stock || 999999, min: 0 } : product),
     sales: state.sales.map((sale, index) => ({ ...sale, ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
-    tables: state.tables.map((table) => ({ ...table, status: table.status || "preparacion" })),
+    tables: state.tables.map((table) => ({ ...table, status: table.items.length ? (table.status === "entregado" ? "entregado" : "preparacion") : "vacio" })),
   };
 }
 

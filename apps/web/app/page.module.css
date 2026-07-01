@@ -746,6 +746,11 @@
   color: #3b2418;
 }
 
+.emptyStatus {
+  background: #e7e2dc;
+  color: #5f554d;
+}
+
 .statusActions {
   display: flex;
   flex-wrap: wrap;
@@ -766,6 +771,59 @@
   background: #c9974b;
   color: #21140d;
   border-color: #c9974b;
+}
+
+.statusActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.tablesWorkspace {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.35fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.tableOrderColumn {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.tableOrderColumn > .panel:first-child .panelHeader {
+  margin: -18px -18px 18px;
+  padding: 17px 18px;
+  border-bottom: 1px solid #e5c9b8;
+  background: #fff2e8;
+}
+
+.tableOrderColumn > .panel:first-child input[type="search"] {
+  min-height: 48px;
+  border-color: #d8b49f;
+  background: #fff;
+}
+
+.tableOrderColumn > .panel:first-child .productGrid {
+  margin-top: 18px;
+}
+
+.tableOrderColumn > .panel:last-child {
+  border: 2px solid #8f4a2f;
+  box-shadow: 0 14px 28px rgba(79, 39, 25, 0.13);
+}
+
+.tableOrderColumn > .panel:last-child .panelHeader {
+  margin: -18px -18px 18px;
+  padding: 16px 18px;
+  background: #8f4a2f;
+  color: #fff3d2;
+}
+
+.tableOrderColumn > .panel:last-child .panelHeader .smallButton {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff3d2;
 }
 
 .cartList {
@@ -928,6 +986,10 @@
     grid-template-columns: 1fr;
   }
 
+  .tablesWorkspace {
+    grid-template-columns: 1fr;
+  }
+
   .moduleStats {
     grid-template-columns: 1fr 1fr 1fr;
   }
@@ -961,6 +1023,16 @@
 
   .barSection .workGrid {
     gap: 14px;
+  }
+
+  .tablesWorkspace,
+  .tableOrderColumn {
+    gap: 14px;
+  }
+
+  .tableOrderColumn .panelHeader {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .topbar {
