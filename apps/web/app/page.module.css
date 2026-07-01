@@ -1145,6 +1145,21 @@
   background: #d3e7ec;
 }
 
+.barcodeListToggle {
+  min-height: 42px;
+  border: 1px solid #7ea9b4;
+  border-radius: 8px;
+  background: #fff;
+  color: #244f5c;
+  padding: 9px 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.barcodeListToggle:hover {
+  background: #edf6f8;
+}
+
 .barcodeEditor {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

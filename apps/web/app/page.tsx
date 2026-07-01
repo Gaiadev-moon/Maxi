@@ -772,6 +772,7 @@ function SettingsForm({ state, onSave }: { state: AppState; onSave: (settings: A
 function ProductModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (product: Product) => void }) {
   const [draft, setDraft] = useState(product);
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [showBarcodes, setShowBarcodes] = useState(false);
   const isBar = draft.area === "bar";
   const isNewDrugstoreProduct = !isBar && !draft.id;
   const addBarcode = () => {
@@ -794,7 +795,8 @@ function ProductModal({ product, onCancel, onSave }: { product: Product; onCance
           <label>Codigos de barras<input autoComplete="off" inputMode="numeric" value={barcodeInput} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addBarcode(); } }} placeholder="Escanear o escribir codigo" /></label>
           <button type="button" className={styles.barcodeButton} onClick={addBarcode}>Agregar codigo</button>
         </div>}
-        {!isBar && draft.barcodes.length > 0 && <div className={styles.barcodeDraftList}>{draft.barcodes.map((barcode) => <div key={barcode}><span>{barcode}</span><button type="button" onClick={() => setDraft((current) => ({ ...current, barcodes: current.barcodes.filter((entry) => entry !== barcode) }))}>Quitar</button></div>)}</div>}
+        {!isBar && draft.barcodes.length > 0 && <button type="button" className={styles.barcodeListToggle} onClick={() => setShowBarcodes((current) => !current)}>{showBarcodes ? "Ocultar codigos" : `Ver codigos (${draft.barcodes.length})`}</button>}
+        {!isBar && showBarcodes && draft.barcodes.length > 0 && <div className={styles.barcodeDraftList}>{draft.barcodes.map((barcode) => <div key={barcode}><span>{barcode}</span><button type="button" onClick={() => setDraft((current) => ({ ...current, barcodes: current.barcodes.filter((entry) => entry !== barcode) }))}>Quitar</button></div>)}</div>}
         <label>Area<input value={labelArea(draft.area)} disabled /></label>
         <div className={isBar ? styles.formGridSingle : styles.formGrid}>
           <label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>
