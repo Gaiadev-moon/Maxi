@@ -308,32 +308,6 @@ export default function Home() {
     setBarCart((items) => items.filter((item) => item.productId !== productId));
   }
 
-  function exportData() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `backup-maxi-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function importData(file: File | undefined) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const imported = normalizeState(JSON.parse(String(reader.result)) as AppState);
-        if (!imported.products || !imported.sales || !imported.tables) throw new Error("invalid");
-        mutate(imported);
-        setSelectedTableId(imported.tables[0]?.id ?? "");
-      } catch {
-        window.alert("No se pudo importar el archivo.");
-      }
-    };
-    reader.readAsText(file);
-  }
-
   return (
     <div className={styles.shell}>
       <main className={styles.main}>
@@ -352,11 +326,6 @@ export default function Home() {
             {view !== "dashboard" && <button className={styles.textButton} onClick={() => setView("dashboard")}>Inicio</button>}
             <button className={styles.textButton} onClick={() => setView("reports")}>Reportes</button>
             <button className={styles.textButton} onClick={() => setView("settings")}>Ajustes</button>
-            <button className={styles.iconButton} onClick={exportData} title="Exportar datos">EX</button>
-            <label className={styles.iconButton} title="Importar datos">
-              IM
-              <input type="file" accept="application/json" onChange={(event) => importData(event.target.files?.[0])} hidden />
-            </label>
           </div>
         </header>
 
@@ -379,17 +348,6 @@ export default function Home() {
 
         {view === "drugstore" && (
           <>
-            <ModuleHeader
-              tone="drugstore"
-              label="Modulo Drugstore"
-              title="Mostrador y stock real"
-              description="Esta seccion maneja productos fisicos, descuenta cantidades y genera tickets D separados."
-              stats={[
-                ["Hoy", money(todayDrugstoreSales.reduce((sum, sale) => sum + sale.total, 0))],
-                ["Tickets", String(todayDrugstoreSales.length)],
-                ["Stock bajo", String(lowDrugstoreStock.length)],
-              ]}
-            />
             <SegmentedControl
               tone="drugstore"
               options={[
