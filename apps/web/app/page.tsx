@@ -11,7 +11,7 @@ type Area = "drugstore" | "bar";
 type Product = {
   id: string;
   name: string;
-  barcode: string;
+  barcodes: string[];
   category: string;
   area: Area;
   price: number;
@@ -85,7 +85,7 @@ const viewCopy: Record<View, [string, string]> = {
 const blankProduct: Product = {
   id: "",
   name: "",
-  barcode: "",
+  barcodes: [],
   category: "",
   area: "drugstore",
   price: 0,
@@ -117,6 +117,7 @@ export default function Home() {
   const [selectedTableId, setSelectedTableId] = useState(seedState.tables[0]?.id ?? "");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
+  const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -347,13 +348,13 @@ export default function Home() {
   }
 
   function saveProduct(product: Product) {
-    const barcode = product.barcode.trim();
-    const duplicateBarcode = barcode && state.products.some((entry) => entry.area === "drugstore" && entry.barcode === barcode && entry.id !== product.id);
+    const barcodes = [...new Set(product.barcodes.map((barcode) => barcode.trim()).filter(Boolean))];
+    const duplicateBarcode = barcodes.find((barcode) => state.products.some((entry) => entry.area === "drugstore" && entry.barcodes.includes(barcode) && entry.id !== product.id));
     if (duplicateBarcode) {
-      window.alert("Ese codigo de barras ya pertenece a otro producto.");
+      window.alert(`El codigo ${duplicateBarcode} ya pertenece a otro producto.`);
       return;
     }
-    const normalized = { ...product, barcode, id: product.id || crypto.randomUUID(), price: Number(product.price), stock: Number(product.stock), min: Number(product.min) };
+    const normalized = { ...product, barcodes, id: product.id || crypto.randomUUID(), price: Number(product.price), stock: Number(product.stock), min: Number(product.min) };
     const exists = state.products.some((entry) => entry.id === normalized.id);
     mutate({
       ...state,
@@ -365,7 +366,7 @@ export default function Home() {
   function scanBarcode() {
     const barcode = barcodeInput.trim();
     if (!barcode) return;
-    const product = state.products.find((entry) => entry.area === "drugstore" && entry.barcode === barcode);
+    const product = state.products.find((entry) => entry.area === "drugstore" && entry.barcodes.includes(barcode));
     if (!product) {
       setBarcodeMessage("Codigo no registrado.");
     } else if (product.stock <= 0) {
@@ -485,6 +486,7 @@ export default function Home() {
                     onEdit={setEditingProduct}
                     onDelete={deleteProduct}
                     onAddStock={setStockProduct}
+                    onViewBarcodes={setBarcodeProduct}
                     variant="inventory"
                     hideCategory
                   />
@@ -610,6 +612,7 @@ export default function Home() {
 
       {editingProduct && <ProductModal product={editingProduct} onCancel={() => setEditingProduct(null)} onSave={saveProduct} />}
       {stockProduct && <StockModal product={stockProduct} onCancel={() => setStockProduct(null)} onSave={(quantity) => addStock(stockProduct.id, quantity)} />}
+      {barcodeProduct && <BarcodeListModal product={barcodeProduct} onClose={() => setBarcodeProduct(null)} />}
     </div>
   );
 }
@@ -691,7 +694,7 @@ function SaleTicket({
   );
 }
 
-function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, menuOnly = false, variant, hideCategory = false }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; onAddStock?: (product: Product) => void; menuOnly?: boolean; variant?: "inventory"; hideCategory?: boolean }) {
+function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, onViewBarcodes, menuOnly = false, variant, hideCategory = false }: { title: string; products: Product[]; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (productId: string) => void; onAddStock?: (product: Product) => void; onViewBarcodes?: (product: Product) => void; menuOnly?: boolean; variant?: "inventory"; hideCategory?: boolean }) {
   return (
     <Panel title={title} action={<button className={styles.primaryCompact} onClick={onAdd}>Agregar producto</button>} variant={variant}>
       <div className={styles.tableWrap}>
@@ -700,12 +703,12 @@ function ProductTable({ title, products, onAdd, onEdit, onDelete, onAddStock, me
           <tbody>
             {products.map((product) => (
               <tr key={product.id}>
-                <td><strong>{product.name}</strong><br /><span>{product.area === "drugstore" && product.barcode ? `Codigo: ${product.barcode}` : labelArea(product.area)}</span></td>
+                <td><strong>{product.name}</strong><br /><span>{labelArea(product.area)}</span></td>
                 {!hideCategory && <td>{product.category}</td>}
                 <td>{money(product.price)}</td>
                 {!menuOnly && <td className={product.stock <= product.min ? styles.low : ""}>{product.stock}</td>}
                 {!menuOnly && <td>{product.min}</td>}
-                <td><div className={styles.rowActions}>{onAddStock && <button className={styles.stockButton} onClick={() => onAddStock(product)}>Agregar stock</button>}<button className={styles.smallButton} onClick={() => onEdit(product)}>Editar</button><button className={styles.smallButton} onClick={() => onDelete(product.id)}>Borrar</button></div></td>
+                <td><div className={styles.rowActions}>{onViewBarcodes && <button className={styles.barcodeButton} onClick={() => onViewBarcodes(product)}>Ver codigos ({product.barcodes.length})</button>}{onAddStock && <button className={styles.stockButton} onClick={() => onAddStock(product)}>Agregar stock</button>}<button className={styles.smallButton} onClick={() => onEdit(product)}>Editar</button><button className={styles.smallButton} onClick={() => onDelete(product.id)}>Borrar</button></div></td>
               </tr>
             ))}
           </tbody>
@@ -752,14 +755,49 @@ function SettingsForm({ state, onSave }: { state: AppState; onSave: (settings: A
 
 function ProductModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (product: Product) => void }) {
   const [draft, setDraft] = useState(product);
+  const [barcodeInput, setBarcodeInput] = useState("");
   const isBar = draft.area === "bar";
   const isNewDrugstoreProduct = !isBar && !draft.id;
-  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min }); }}><h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: formatName(event.target.value) })} /></label>{!isBar && <label>Codigo de barras<input autoComplete="off" inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft({ ...draft, barcode: event.target.value.trim() })} placeholder="Escanear o escribir codigo" /></label>}<label>Area<input value={labelArea(draft.area)} disabled /></label><div className={isBar ? styles.formGridSingle : styles.formGrid}><label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>{isNewDrugstoreProduct && <label>Stock inicial<input type="number" min="0" value={draft.stock || ""} onChange={(event) => setDraft({ ...draft, stock: numberValue(event.target.value) })} /></label>}{!isBar && <label>Minimo<input type="number" min="0" value={draft.min || ""} onChange={(event) => setDraft({ ...draft, min: numberValue(event.target.value) })} /></label>}</div><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div></form></div>;
+  const addBarcode = () => {
+    const barcode = barcodeInput.trim();
+    if (!barcode) return;
+    if (!draft.barcodes.includes(barcode)) setDraft({ ...draft, barcodes: [...draft.barcodes, barcode] });
+    setBarcodeInput("");
+  };
+  return (
+    <div className={styles.modalBackdrop}>
+      <form className={styles.modal} onSubmit={(event) => {
+        event.preventDefault();
+        const pendingBarcode = barcodeInput.trim();
+        const barcodes = pendingBarcode && !draft.barcodes.includes(pendingBarcode) ? [...draft.barcodes, pendingBarcode] : draft.barcodes;
+        onSave({ ...draft, barcodes, stock: isBar ? 999999 : draft.stock, min: isBar ? 0 : draft.min });
+      }}>
+        <h2>{draft.id ? "Editar producto" : "Agregar producto"}</h2>
+        <label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: formatName(event.target.value) })} /></label>
+        {!isBar && <div className={styles.barcodeEditor}>
+          <label>Codigos de barras<input autoComplete="off" inputMode="numeric" value={barcodeInput} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addBarcode(); } }} placeholder="Escanear o escribir codigo" /></label>
+          <button type="button" className={styles.barcodeButton} onClick={addBarcode}>Agregar codigo</button>
+        </div>}
+        {!isBar && draft.barcodes.length > 0 && <div className={styles.barcodeDraftList}>{draft.barcodes.map((barcode) => <div key={barcode}><span>{barcode}</span><button type="button" onClick={() => setDraft({ ...draft, barcodes: draft.barcodes.filter((entry) => entry !== barcode) })}>Quitar</button></div>)}</div>}
+        <label>Area<input value={labelArea(draft.area)} disabled /></label>
+        <div className={isBar ? styles.formGridSingle : styles.formGrid}>
+          <label>Precio<input type="number" min="0" value={draft.price || ""} onChange={(event) => setDraft({ ...draft, price: numberValue(event.target.value) })} /></label>
+          {isNewDrugstoreProduct && <label>Stock inicial<input type="number" min="0" value={draft.stock || ""} onChange={(event) => setDraft({ ...draft, stock: numberValue(event.target.value) })} /></label>}
+          {!isBar && <label>Minimo<input type="number" min="0" value={draft.min || ""} onChange={(event) => setDraft({ ...draft, min: numberValue(event.target.value) })} /></label>}
+        </div>
+        <div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar</button></div>
+      </form>
+    </div>
+  );
 }
 
 function StockModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (quantity: number) => void }) {
   const [quantity, setQuantity] = useState("");
   return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave(Number(quantity)); }}><h2>Agregar stock</h2><div className={styles.stockSummary}><strong>{product.name}</strong><span>Stock actual: {product.stock}</span></div><label>Cantidad que ingresa<input autoFocus required type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="Ej: 12" /></label><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.stockButton}>Sumar al stock</button></div></form></div>;
+}
+
+function BarcodeListModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  return <div className={styles.modalBackdrop}><section className={styles.modal}><h2>Codigos de {product.name}</h2>{product.barcodes.length ? <div className={styles.barcodeFullList}>{product.barcodes.map((barcode, index) => <div key={barcode}><span>Codigo {index + 1}</span><strong>{barcode}</strong></div>)}</div> : <div className={styles.empty}>Este producto no tiene codigos cargados.</div>}<div className={styles.modalActions}><button className={styles.primaryCompact} onClick={onClose}>Cerrar</button></div></section></div>;
 }
 
 function AreaReport({ sales }: { sales: Sale[] }) {
@@ -876,7 +914,15 @@ function compareTables(a: TableOrder, b: TableOrder) {
 function normalizeState(state: AppState): AppState {
   return {
     ...state,
-    products: state.products.map((product) => product.area === "bar" ? { ...product, barcode: product.barcode ?? "", stock: product.stock || 999999, min: 0 } : { ...product, barcode: product.barcode ?? "" }),
+    products: state.products.map((product) => {
+      const legacyProduct = product as Product & { barcode?: string };
+      const barcodes = Array.isArray(legacyProduct.barcodes)
+        ? legacyProduct.barcodes.filter(Boolean)
+        : (legacyProduct.barcode ? [legacyProduct.barcode] : []);
+      return product.area === "bar"
+        ? { ...product, barcodes, stock: product.stock || 999999, min: 0 }
+        : { ...product, barcodes };
+    }),
     sales: state.sales.map((sale, index) => ({ ...sale, ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
     tables: state.tables.map((table) => ({ ...table, status: table.items.length ? (table.status === "entregado" ? "entregado" : "preparacion") : "vacio" })),
   };
