@@ -173,6 +173,11 @@ export default function Home() {
     };
   }, [session]);
 
+  useEffect(() => {
+    if (view !== "drugstore" || drugstoreOption !== "venta") return;
+    window.requestAnimationFrame(() => barcodeInputRef.current?.focus());
+  }, [view, drugstoreOption, drugstoreCart]);
+
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
   const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
   const barSales = state.sales.filter((sale) => sale.area === "bar");
