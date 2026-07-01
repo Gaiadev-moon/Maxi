@@ -415,7 +415,9 @@
 
 .metricGrid,
 .twoColumn,
-.workGrid {
+.workGrid,
+.reportsBillingGrid,
+.dailySalesGrid {
   display: grid;
   gap: 18px;
 }
@@ -429,6 +431,93 @@
 .workGrid {
   grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
   align-items: start;
+}
+
+.reportsBillingGrid,
+.dailySalesGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.reportsBillingGrid > .panel,
+.dailySalesGrid > .panel {
+  height: 100%;
+}
+
+.dailyReportSection {
+  overflow: hidden;
+  margin-bottom: 18px;
+  border: 1px solid #dcc5aa;
+  border-radius: 8px;
+  background: #efe2d1;
+}
+
+.reportDateBar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  background: #3b2418;
+  color: #fff3d2;
+}
+
+.reportDateBar span {
+  color: #c9974b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.reportDateBar h2 {
+  margin-top: 4px;
+  font-size: 24px;
+}
+
+.reportDateBar label {
+  width: min(220px, 100%);
+  color: #f1d9bc;
+  font-weight: 800;
+}
+
+.reportDateBar input {
+  min-height: 44px;
+  background: #fffaf2;
+}
+
+.dailySalesGrid {
+  padding: 20px;
+}
+
+.dailySalesGrid .panel {
+  margin: 0;
+  box-shadow: none;
+}
+
+.dailyItems {
+  display: grid;
+  gap: 12px;
+}
+
+.dailyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e6d3bd;
+}
+
+.dailyItem span {
+  display: block;
+  margin-top: 4px;
+  color: #856a55;
+  font-size: 13px;
+}
+
+.dailyItems .totalRow {
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 .metric,
@@ -825,6 +914,8 @@
   .moduleChoiceGrid,
   .twoColumn,
   .workGrid,
+  .reportsBillingGrid,
+  .dailySalesGrid,
   .moduleHeader {
     grid-template-columns: 1fr;
   }
@@ -880,6 +971,19 @@
   .topActions {
     flex-wrap: wrap;
     width: 100%;
+  }
+
+  .reportDateBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reportDateBar label {
+    width: 100%;
+  }
+
+  .dailySalesGrid {
+    padding: 14px;
   }
 
   .textButton {

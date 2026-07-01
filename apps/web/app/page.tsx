@@ -117,6 +117,7 @@ export default function Home() {
   const [barCustomer, setBarCustomer] = useState("");
   const [drugstorePayment, setDrugstorePayment] = useState("Efectivo");
   const [barPayment, setBarPayment] = useState("Efectivo");
+  const [reportDate, setReportDate] = useState(() => dateKey(new Date()));
   const [selectedTableId, setSelectedTableId] = useState(seedState.tables[0]?.id ?? "");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -140,6 +141,9 @@ export default function Home() {
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
   const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
   const barSales = state.sales.filter((sale) => sale.area === "bar");
+  const selectedDaySales = state.sales.filter((sale) => dateKey(new Date(sale.createdAt)) === reportDate);
+  const selectedDayDrugstoreSales = selectedDaySales.filter((sale) => sale.area === "drugstore");
+  const selectedDayBarSales = selectedDaySales.filter((sale) => sale.area === "bar");
   const todayDrugstoreSales = todaySales.filter((sale) => sale.area === "drugstore");
   const openTables = state.tables.filter((table) => table.items.length);
   const lowDrugstoreStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
@@ -463,11 +467,24 @@ export default function Home() {
 
         {view === "reports" && (
           <>
+            <section className={styles.dailyReportSection}>
+              <div className={styles.reportDateBar}>
+                <div>
+                  <span>Resumen diario</span>
+                  <h2>Que se vendio</h2>
+                </div>
+                <label>Elegir fecha<input type="date" value={reportDate} max={dateKey(new Date())} onChange={(event) => setReportDate(event.target.value)} /></label>
+              </div>
+              <div className={styles.dailySalesGrid}>
+                <Panel title="Drugstore"><DailyItems sales={selectedDayDrugstoreSales} /></Panel>
+                <Panel title="Bar"><DailyItems sales={selectedDayBarSales} /></Panel>
+              </div>
+            </section>
             <div className={styles.twoColumn}>
               <Panel title="Ventas por area"><AreaReport sales={state.sales} /></Panel>
               <Panel title="Mas vendidos"><TopItems sales={state.sales} /></Panel>
             </div>
-            <div className={styles.twoColumn}>
+            <div className={styles.reportsBillingGrid}>
               <SalesTable title="Facturacion Drugstore" sales={drugstoreSales} settings={state.settings} />
               <SalesTable title="Facturacion Bar" sales={barSales} settings={state.settings} />
             </div>
@@ -611,6 +628,17 @@ function TopItems({ sales }: { sales: Sale[] }) {
   return <>{sorted.map(([name, qty]) => <ListItem key={name} title={name} meta={`${qty} vendidos`} />)}</>;
 }
 
+function DailyItems({ sales }: { sales: Sale[] }) {
+  const items = new Map<string, { qty: number; total: number }>();
+  sales.forEach((sale) => sale.items.forEach((item) => {
+    const current = items.get(item.name) ?? { qty: 0, total: 0 };
+    items.set(item.name, { qty: current.qty + item.qty, total: current.total + item.qty * item.price });
+  }));
+  const sorted = [...items.entries()].sort((a, b) => b[1].qty - a[1].qty);
+  if (!sorted.length) return <div className={styles.empty}>No hubo ventas en esta fecha.</div>;
+  return <div className={styles.dailyItems}>{sorted.map(([name, item]) => <div className={styles.dailyItem} key={name}><div><strong>{name}</strong><span>{item.qty} vendidos</span></div><strong>{money(item.total)}</strong></div>)}<Total label="Total del dia" value={sales.reduce((sum, sale) => sum + sale.total, 0)} /></div>;
+}
+
 function SalesTable({ title, sales, settings }: { title: string; sales: Sale[]; settings: AppState["settings"] }) {
   return (
     <Panel title={title}>
@@ -644,6 +672,13 @@ function money(value: number) {
 
 function date(value: string) {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function dateKey(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function isToday(value: string) {
