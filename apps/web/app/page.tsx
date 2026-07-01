@@ -208,12 +208,10 @@ export default function Home() {
 
   function addLine(productId: string, target: "drugstoreCart" | "barCart" | "table") {
     const product = state.products.find((entry) => entry.id === productId);
-    if (!product || (product.area === "drugstore" && product.stock <= 0)) return;
+    if (!product) return;
 
     const apply = (items: LineItem[]) => {
       const current = items.find((item) => item.productId === productId);
-      const currentQty = current?.qty ?? 0;
-      if (product.area === "drugstore" && currentQty >= product.stock) return items;
       if (current) {
         return items.map((item) => item.productId === productId ? { ...item, qty: item.qty + 1 } : item);
       }
@@ -238,12 +236,10 @@ export default function Home() {
 
   function changeQty(productId: string, delta: number, target: "drugstoreCart" | "barCart" | "table") {
     const apply = (items: LineItem[]) => {
-      const product = state.products.find((entry) => entry.id === productId);
       return items
         .map((item) => {
           if (item.productId !== productId) return item;
-          const limit = product?.area === "drugstore" ? product.stock : Number.MAX_SAFE_INTEGER;
-          const nextQty = Math.max(0, Math.min(limit, item.qty + delta));
+          const nextQty = Math.max(0, item.qty + delta);
           return { ...item, qty: nextQty };
         })
         .filter((item) => item.qty > 0);
@@ -284,7 +280,7 @@ export default function Home() {
       ...state,
       products: state.products.map((product) => {
         const item = items.find((entry) => entry.productId === product.id);
-        return item && product.area === "drugstore" ? { ...product, stock: Math.max(0, product.stock - item.qty) } : product;
+        return item && product.area === "drugstore" ? { ...product, stock: product.stock - item.qty } : product;
       }),
       sales: [...state.sales, sale],
     });
@@ -369,11 +365,9 @@ export default function Home() {
     const product = state.products.find((entry) => entry.area === "drugstore" && entry.barcodes.includes(barcode));
     if (!product) {
       setBarcodeMessage("Codigo no registrado.");
-    } else if (product.stock <= 0) {
-      setBarcodeMessage(`${product.name}: sin stock.`);
     } else {
       addLine(product.id, "drugstoreCart");
-      setBarcodeMessage(`${product.name} agregado al ticket.`);
+      setBarcodeMessage(product.stock <= 0 ? `${product.name} agregado. El stock quedara en negativo.` : `${product.name} agregado al ticket.`);
     }
     setBarcodeInput("");
     window.requestAnimationFrame(() => barcodeInputRef.current?.focus());
@@ -739,8 +733,8 @@ function Panel({ title, action, children, sticky, narrow, variant }: { title: st
 function ProductGrid({ products, onPick, compact, showStock = false, hideCategory = false }: { products: Product[]; onPick: (id: string) => void; compact?: boolean; showStock?: boolean; hideCategory?: boolean }) {
   if (!products.length) return <div className={styles.empty}>Sin resultados.</div>;
   return <div className={`${styles.productGrid} ${compact ? styles.compactGrid : ""}`}>{products.map((product) => {
-    const out = product.area === "drugstore" && product.stock <= 0;
-    return <button key={product.id} className={`${styles.productCard} ${out ? styles.out : ""}`} disabled={out} onClick={() => onPick(product.id)}><strong>{product.name}</strong><span>{hideCategory ? money(product.price) : `${product.category} - ${money(product.price)}`}</span>{showStock && <span>Stock: {product.stock}</span>}</button>;
+    const lowStock = product.area === "drugstore" && product.stock <= 0;
+    return <button key={product.id} className={`${styles.productCard} ${lowStock ? styles.negativeStockCard : ""}`} onClick={() => onPick(product.id)}><strong>{product.name}</strong><span>{hideCategory ? money(product.price) : `${product.category} - ${money(product.price)}`}</span>{showStock && <span>Stock: {product.stock}</span>}</button>;
   })}</div>;
 }
 

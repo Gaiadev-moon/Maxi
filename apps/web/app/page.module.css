@@ -907,6 +907,16 @@
   opacity: 0.55;
 }
 
+.negativeStockCard {
+  border: 2px solid #bd5745;
+  background: #fff0ec;
+}
+
+.negativeStockCard span:last-child {
+  color: #9a3223;
+  font-weight: 900;
+}
+
 .selected {
   border-color: #c9974b;
   background: #fff0cf;
