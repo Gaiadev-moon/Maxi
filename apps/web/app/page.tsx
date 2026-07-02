@@ -852,14 +852,16 @@ function DailyItems({ sales }: { sales: Sale[] }) {
 function SalesTable({ title, sales, settings }: { title: string; sales: Sale[]; settings: AppState["settings"] }) {
   const pageSize = 20;
   const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
   const sortedSales = sales.slice().reverse();
-  const totalPages = Math.max(1, Math.ceil(sortedSales.length / pageSize));
+  const filteredSales = sortedSales.filter((sale) => normalize(`${sale.ticketNumber} ${sale.customer} ${sale.payment} ${date(sale.createdAt)}`).includes(normalize(query)));
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const visibleSales = sortedSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const visibleSales = filteredSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <Panel title={title}>
-      <div className={styles.billingCount}>{sales.length} tickets registrados</div>
+      <div className={styles.stockSearchBar}><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Buscar ticket, cliente, pago o fecha..." /><span>{filteredSales.length} tickets</span></div>
       <div className={styles.tableWrap}>
         <table>
           <thead><tr><th>Ticket</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Total</th><th /></tr></thead>
@@ -870,7 +872,7 @@ function SalesTable({ title, sales, settings }: { title: string; sales: Sale[]; 
           </tbody>
         </table>
       </div>
-      <ListEmpty show={!sales.length} text="Sin facturacion registrada." />
+      <ListEmpty show={!filteredSales.length} text={sales.length ? "No se encontraron tickets." : "Sin facturacion registrada."} />
       {totalPages > 1 && <div className={styles.pagination}><button className={styles.smallButton} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><strong>Pagina {currentPage} de {totalPages}</strong><button className={styles.smallButton} disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></div>}
     </Panel>
   );
