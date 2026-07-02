@@ -108,7 +108,9 @@ export default function Home() {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [barcodeMessage, setBarcodeMessage] = useState("");
   const barcodeInputRef = useRef<HTMLInputElement>(null);
-  const barcodeScanLockRef = useRef(false);
+  const barcodeValueRef = useRef("");
+  const barcodeDetectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastProcessedBarcodeRef = useRef({ code: "", time: 0 });
   const [barSearch, setBarSearch] = useState("");
   const [drugstoreCustomer, setDrugstoreCustomer] = useState("");
   const [barCustomer, setBarCustomer] = useState("");
@@ -180,6 +182,10 @@ export default function Home() {
     if (view !== "drugstore" || drugstoreOption !== "venta") return;
     window.requestAnimationFrame(() => barcodeInputRef.current?.focus());
   }, [view, drugstoreOption, drugstoreCart]);
+
+  useEffect(() => () => {
+    if (barcodeDetectionTimerRef.current) clearTimeout(barcodeDetectionTimerRef.current);
+  }, []);
 
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
   const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
@@ -375,29 +381,35 @@ export default function Home() {
   }
 
   function processBarcode(barcode: string, showNotFound: boolean) {
-    if (!barcode || barcodeScanLockRef.current) return false;
+    if (!barcode) return false;
+    const now = Date.now();
+    if (lastProcessedBarcodeRef.current.code === barcode && now - lastProcessedBarcodeRef.current.time < 200) return false;
     const product = state.products.find((entry) => entry.area === "drugstore" && entry.barcodes.includes(barcode));
     if (!product) {
       if (showNotFound) setBarcodeMessage("Codigo no registrado.");
       return false;
     }
-    barcodeScanLockRef.current = true;
+    lastProcessedBarcodeRef.current = { code: barcode, time: now };
     addLine(product.id, "drugstoreCart");
     setBarcodeMessage(product.stock <= 0 ? `${product.name} agregado. El stock quedara en negativo.` : `${product.name} agregado al ticket.`);
     setBarcodeInput("");
+    barcodeValueRef.current = "";
     window.requestAnimationFrame(() => barcodeInputRef.current?.focus());
-    setTimeout(() => { barcodeScanLockRef.current = false; }, 180);
     return true;
   }
 
   function scanBarcode() {
-    processBarcode(barcodeInput.trim(), true);
+    if (barcodeDetectionTimerRef.current) clearTimeout(barcodeDetectionTimerRef.current);
+    processBarcode(barcodeValueRef.current.trim(), true);
   }
 
   function handleBarcodeInput(value: string) {
     setBarcodeInput(value);
+    barcodeValueRef.current = value;
     setBarcodeMessage("");
-    processBarcode(value.trim(), false);
+    if (barcodeDetectionTimerRef.current) clearTimeout(barcodeDetectionTimerRef.current);
+    const barcode = value.trim();
+    if (barcode) barcodeDetectionTimerRef.current = setTimeout(() => processBarcode(barcode, false), 70);
   }
 
   function deleteProduct(productId: string) {
