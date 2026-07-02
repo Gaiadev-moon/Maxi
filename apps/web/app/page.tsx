@@ -58,7 +58,7 @@ type AppState = {
   tables: TableOrder[];
 };
 
-type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings" | "changelog";
+type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
 type DrugstoreOption = "venta" | "stock";
 type BarOption = "mesas" | "menu" | "venta";
 
@@ -80,36 +80,7 @@ const viewCopy: Record<View, [string, string]> = {
   bar: ["Bar", "Menu, mesas, estados de pedido y ventas del bar."],
   reports: ["Reportes", "Control de que se vende y por donde entra la plata."],
   settings: ["Ajustes", "Datos que aparecen en los tickets."],
-  changelog: ["Novedades", "Mejoras y ajustes recientes del sistema."],
 };
-
-const changelogEntries = [
-  {
-    date: "2 de julio de 2026",
-    title: "Lectura de codigos mas precisa",
-    text: "Mejore el lector para que agregue los productos automaticamente, pero espere lo justo cuando dos codigos son casi iguales. Tambien se pueden guardar varios codigos para un mismo articulo y verlos sin llenar la pantalla.",
-  },
-  {
-    date: "2 de julio de 2026",
-    title: "Listas mas faciles de recorrer",
-    text: "El stock, el menu y la facturacion ahora tienen buscador y paginas de 20 registros. Asi la pantalla se mantiene ordenada aunque el negocio cargue cientos de productos y tickets.",
-  },
-  {
-    date: "2 de julio de 2026",
-    title: "Mesas mas claras",
-    text: "Ordene las mesas de forma correlativa, las acomode de a tres por fila y marque cada estado con un color distinto. Vacio, en preparacion y entregado se reconocen de un vistazo.",
-  },
-  {
-    date: "1 de julio de 2026",
-    title: "Datos compartidos entre las computadoras",
-    text: "Conecte el sistema con Supabase para que productos, stock, ventas y mesas se actualicen entre las PC. Tambien agregue acceso con usuario para mantener la informacion protegida.",
-  },
-  {
-    date: "1 de julio de 2026",
-    title: "Tickets preparados para la termica",
-    text: "Adapte la impresion al rollo de 58 mm, con letras mas grandes, mejor contraste y menos espacio desperdiciado. La reimpresion ya no vuelve a registrar la venta.",
-  },
-];
 
 const blankProduct: Product = {
   id: "",
@@ -486,7 +457,6 @@ export default function Home() {
           <div className={styles.topActions}>
             {view !== "dashboard" && <button className={`${styles.textButton} ${styles.homeButton}`} onClick={() => setView("dashboard")}>Inicio</button>}
             <button className={styles.textButton} onClick={() => setView("reports")}>Reportes</button>
-            <button className={styles.textButton} onClick={() => setView("changelog")}>Novedades</button>
             <button className={styles.textButton} onClick={() => setView("settings")}>Ajustes</button>
             <button className={styles.textButton} onClick={() => void supabase.auth.signOut()}>Salir</button>
           </div>
@@ -674,16 +644,6 @@ export default function Home() {
           </Panel>
         )}
 
-        {view === "changelog" && (
-          <section className={styles.changelog}>
-            {changelogEntries.map((entry, index) => (
-              <article className={styles.changeEntry} key={`${entry.date}-${entry.title}`}>
-                <div className={styles.changeDate}>{entry.date}{index === 0 && <span>Ultimo cambio</span>}</div>
-                <div><h2>{entry.title}</h2><p>{entry.text}</p></div>
-              </article>
-            ))}
-          </section>
-        )}
       </main>
 
       {editingProduct && <ProductModal product={editingProduct} onCancel={() => setEditingProduct(null)} onSave={saveProduct} />}

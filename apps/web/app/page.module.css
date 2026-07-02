@@ -70,51 +70,6 @@
   margin-bottom: 18px;
 }
 
-.changelog {
-  display: grid;
-  gap: 12px;
-  max-width: 900px;
-}
-
-.changeEntry {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 22px;
-  border: 1px solid #e6d3bd;
-  border-left: 5px solid #c9974b;
-  border-radius: 8px;
-  background: #fffaf2;
-  padding: 20px;
-  box-shadow: 0 10px 24px rgba(43, 26, 16, 0.07);
-}
-
-.changeDate {
-  color: #856a55;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.changeDate span {
-  display: block;
-  width: fit-content;
-  margin-top: 9px;
-  border-radius: 8px;
-  background: #2f6b4f;
-  color: #fff;
-  padding: 5px 8px;
-  font-size: 11px;
-}
-
-.changeEntry h2 {
-  margin: 0 0 7px;
-  font-size: 18px;
-}
-
-.changeEntry p {
-  margin: 0;
-  color: #6f5846;
-  line-height: 1.55;
-}
 
 .brand {
   display: flex;
@@ -1467,11 +1422,6 @@
   .reportDateBar {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .changeEntry {
-    grid-template-columns: 1fr;
-    gap: 10px;
   }
 
   .reportDateBar label {
