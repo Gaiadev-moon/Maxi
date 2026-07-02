@@ -118,6 +118,7 @@ export default function Home() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
+  const saleInProgressRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -289,7 +290,8 @@ export default function Home() {
 
   function finishSale(area: Area) {
     const cart = area === "drugstore" ? drugstoreCart : barCart;
-    if (!cart.length) return;
+    if (!cart.length || saleInProgressRef.current) return;
+    saleInProgressRef.current = true;
     const sale = createSale(
       area,
       area === "drugstore" ? drugstoreCustomer : barCustomer,
@@ -304,10 +306,12 @@ export default function Home() {
       setBarCustomer("");
     }
     setTimeout(() => printTicket(state.settings, sale), 50);
+    setTimeout(() => { saleInProgressRef.current = false; }, 1200);
   }
 
   function closeTable() {
-    if (!selectedTable?.items.length) return;
+    if (!selectedTable?.items.length || saleInProgressRef.current) return;
+    saleInProgressRef.current = true;
     const sale: Sale = {
       id: crypto.randomUUID(),
       ticketNumber: nextTicketNumber(state.sales, "bar"),
@@ -325,6 +329,7 @@ export default function Home() {
       tables: state.tables.map((table) => table.id === selectedTable.id ? { ...table, status: "vacio", items: [] } : table),
     });
     setTimeout(() => printTicket(state.settings, sale), 50);
+    setTimeout(() => { saleInProgressRef.current = false; }, 1200);
   }
 
   function setTableStatus(tableId: string, status: TableStatus) {
@@ -852,7 +857,7 @@ function SalesTable({ title, sales, settings }: { title: string; sales: Sale[]; 
           <thead><tr><th>Ticket</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Total</th><th /></tr></thead>
           <tbody>
             {sales.slice().reverse().map((sale) => (
-              <tr key={sale.id}><td>{sale.ticketNumber}</td><td>{date(sale.createdAt)}</td><td>{sale.customer}</td><td>{sale.payment}</td><td>{money(sale.total)}</td><td><button className={styles.smallButton} onClick={() => printTicket(settings, sale)}>Ticket</button></td></tr>
+              <tr key={sale.id}><td>{sale.ticketNumber}</td><td>{date(sale.createdAt)}</td><td>{sale.customer}</td><td>{sale.payment}</td><td>{money(sale.total)}</td><td><button type="button" className={styles.smallButton} onClick={() => printTicket(settings, sale)}>Reimprimir</button></td></tr>
             ))}
           </tbody>
         </table>
