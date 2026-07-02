@@ -850,19 +850,28 @@ function DailyItems({ sales }: { sales: Sale[] }) {
 }
 
 function SalesTable({ title, sales, settings }: { title: string; sales: Sale[]; settings: AppState["settings"] }) {
+  const pageSize = 20;
+  const [page, setPage] = useState(1);
+  const sortedSales = sales.slice().reverse();
+  const totalPages = Math.max(1, Math.ceil(sortedSales.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleSales = sortedSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <Panel title={title}>
+      <div className={styles.billingCount}>{sales.length} tickets registrados</div>
       <div className={styles.tableWrap}>
         <table>
           <thead><tr><th>Ticket</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Total</th><th /></tr></thead>
           <tbody>
-            {sales.slice().reverse().map((sale) => (
+            {visibleSales.map((sale) => (
               <tr key={sale.id}><td>{sale.ticketNumber}</td><td>{date(sale.createdAt)}</td><td>{sale.customer}</td><td>{sale.payment}</td><td>{money(sale.total)}</td><td><button type="button" className={styles.smallButton} onClick={() => printTicket(settings, sale)}>Reimprimir</button></td></tr>
             ))}
           </tbody>
         </table>
       </div>
       <ListEmpty show={!sales.length} text="Sin facturacion registrada." />
+      {totalPages > 1 && <div className={styles.pagination}><button className={styles.smallButton} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><strong>Pagina {currentPage} de {totalPages}</strong><button className={styles.smallButton} disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></div>}
     </Panel>
   );
 }

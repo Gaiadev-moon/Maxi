@@ -831,6 +831,13 @@
   opacity: 0.45;
 }
 
+.billingCount {
+  margin-bottom: 12px;
+  color: #856a55;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .alertPanel {
   border-left: 5px solid #a33c2b;
   background: #fff7ed;
