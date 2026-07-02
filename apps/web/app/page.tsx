@@ -108,6 +108,7 @@ export default function Home() {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [barcodeMessage, setBarcodeMessage] = useState("");
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const barcodeScanLockRef = useRef(false);
   const [barSearch, setBarSearch] = useState("");
   const [drugstoreCustomer, setDrugstoreCustomer] = useState("");
   const [barCustomer, setBarCustomer] = useState("");
@@ -373,18 +374,30 @@ export default function Home() {
     setEditingProduct(null);
   }
 
-  function scanBarcode() {
-    const barcode = barcodeInput.trim();
-    if (!barcode) return;
+  function processBarcode(barcode: string, showNotFound: boolean) {
+    if (!barcode || barcodeScanLockRef.current) return false;
     const product = state.products.find((entry) => entry.area === "drugstore" && entry.barcodes.includes(barcode));
     if (!product) {
-      setBarcodeMessage("Codigo no registrado.");
-    } else {
-      addLine(product.id, "drugstoreCart");
-      setBarcodeMessage(product.stock <= 0 ? `${product.name} agregado. El stock quedara en negativo.` : `${product.name} agregado al ticket.`);
+      if (showNotFound) setBarcodeMessage("Codigo no registrado.");
+      return false;
     }
+    barcodeScanLockRef.current = true;
+    addLine(product.id, "drugstoreCart");
+    setBarcodeMessage(product.stock <= 0 ? `${product.name} agregado. El stock quedara en negativo.` : `${product.name} agregado al ticket.`);
     setBarcodeInput("");
     window.requestAnimationFrame(() => barcodeInputRef.current?.focus());
+    setTimeout(() => { barcodeScanLockRef.current = false; }, 180);
+    return true;
+  }
+
+  function scanBarcode() {
+    processBarcode(barcodeInput.trim(), true);
+  }
+
+  function handleBarcodeInput(value: string) {
+    setBarcodeInput(value);
+    setBarcodeMessage("");
+    processBarcode(value.trim(), false);
   }
 
   function deleteProduct(productId: string) {
@@ -474,7 +487,7 @@ export default function Home() {
                 <div className={styles.drugstoreSaleLayout}>
                   <Panel title="Productos" variant="catalog">
                     <form className={styles.barcodeScanner} onSubmit={(event) => { event.preventDefault(); scanBarcode(); }}>
-                      <label>Codigo de barras<input ref={barcodeInputRef} autoFocus autoComplete="off" inputMode="numeric" value={barcodeInput} onChange={(event) => { setBarcodeInput(event.target.value); setBarcodeMessage(""); }} placeholder="Escanear o escribir codigo" /></label>
+                      <label>Codigo de barras<input ref={barcodeInputRef} autoFocus autoComplete="off" inputMode="numeric" value={barcodeInput} onChange={(event) => handleBarcodeInput(event.target.value)} placeholder="Escanear o escribir codigo" /></label>
                       <button className={styles.scanButton}>Agregar</button>
                     </form>
                     {barcodeMessage && <p className={styles.barcodeMessage}>{barcodeMessage}</p>}
