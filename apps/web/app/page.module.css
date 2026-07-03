@@ -214,6 +214,178 @@
   background: #d7aa61;
 }
 
+.cashOpen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  gap: 28px;
+  align-items: center;
+  border: 2px solid #c9974b;
+  border-radius: 8px;
+  background: #3b2418;
+  color: #fff3d2;
+  padding: 28px;
+  box-shadow: 0 18px 40px rgba(43, 26, 16, 0.16);
+}
+
+.cashOpen span,
+.cashBar > div:first-child > span {
+  color: #c9974b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cashOpen h2 {
+  margin: 6px 0 8px;
+  font-size: 28px;
+}
+
+.cashOpen p,
+.cashBar small {
+  color: #d8c0a4;
+}
+
+.cashOpen form {
+  display: grid;
+  gap: 12px;
+  border-radius: 8px;
+  background: #fffaf2;
+  padding: 18px;
+}
+
+.cashOpen form label {
+  color: #6f5846;
+  font-weight: 900;
+}
+
+.cashBar {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(320px, 1.4fr) auto;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 16px;
+  border: 1px solid #d8b49f;
+  border-left: 6px solid #2f8f5b;
+  border-radius: 8px;
+  background: #fffaf2;
+  padding: 14px 16px;
+  box-shadow: 0 10px 24px rgba(43, 26, 16, 0.08);
+}
+
+.cashBar > div:first-child strong,
+.cashBar > div:first-child small {
+  display: block;
+}
+
+.cashBar > div:first-child strong {
+  margin: 3px 0;
+  font-size: 18px;
+}
+
+.cashBarMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cashBarMetrics div {
+  border-left: 3px solid #c9974b;
+  padding-left: 12px;
+}
+
+.cashBarMetrics span,
+.cashBarMetrics strong {
+  display: block;
+}
+
+.cashBarMetrics span {
+  color: #856a55;
+  font-size: 12px;
+}
+
+.cashBarMetrics strong {
+  margin-top: 3px;
+  font-size: 18px;
+}
+
+.cashBarActions {
+  display: flex;
+  gap: 8px;
+}
+
+.closeCashButton {
+  min-height: 40px;
+  border: 1px solid #7f2f20;
+  border-radius: 8px;
+  background: #9f412c;
+  color: #fff;
+  padding: 9px 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.closeCashButton:disabled {
+  opacity: 0.55;
+}
+
+.cashCloseModal {
+  width: min(620px, 100%);
+}
+
+.cashCloseSummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+  border: 1px solid #e6d3bd;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff5e8;
+}
+
+.cashCloseSummary .totalRow {
+  border-bottom: 1px solid #eadaca;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.cashCloseSummary .totalRow strong {
+  font-size: 15px;
+}
+
+.expectedCash,
+.cashDifference {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 8px;
+  padding: 13px 14px;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.expectedCash {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  background: #3b2418;
+  color: #fff3d2;
+}
+
+.exactCash {
+  background: #e3f5e9;
+  color: #246941;
+}
+
+.missingCash {
+  background: #fff0ec;
+  color: #9a3223;
+}
+
+.extraCash {
+  background: #fff3bf;
+  color: #684600;
+}
+
 .moduleChoiceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1343,6 +1515,14 @@
     grid-template-columns: 1fr;
   }
 
+  .cashBar {
+    grid-template-columns: 1fr;
+  }
+
+  .cashBarActions {
+    flex-wrap: wrap;
+  }
+
   .moduleStats {
     grid-template-columns: 1fr 1fr 1fr;
   }
@@ -1351,6 +1531,19 @@
 @media (max-width: 560px) {
   .main {
     padding: 16px;
+  }
+
+  .cashOpen,
+  .cashCloseSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .cashOpen {
+    padding: 18px;
+  }
+
+  .expectedCash {
+    grid-column: auto;
   }
 
   .drugstoreNav {

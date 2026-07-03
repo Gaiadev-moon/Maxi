@@ -35,6 +35,30 @@ type Sale = {
   payment: string;
   items: LineItem[];
   total: number;
+  cashSessionId: string;
+};
+
+type CashMovement = {
+  id: string;
+  type: "ingreso" | "gasto" | "retiro";
+  amount: number;
+  reason: string;
+  createdAt: string;
+};
+
+type CashSession = {
+  id: string;
+  area: Area;
+  status: "abierta" | "cerrada";
+  openedAt: string;
+  openedBy: string;
+  openingAmount: number;
+  movements: CashMovement[];
+  closedAt?: string;
+  closedBy?: string;
+  countedAmount?: number;
+  expectedAmount?: number;
+  difference?: number;
 };
 
 type TableStatus = "vacio" | "preparacion" | "entregado";
@@ -56,6 +80,7 @@ type AppState = {
   products: Product[];
   sales: Sale[];
   tables: TableOrder[];
+  cashSessions: CashSession[];
 };
 
 type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
@@ -72,6 +97,7 @@ const seedState: AppState = {
   products: [],
   sales: [],
   tables: [],
+  cashSessions: [],
 };
 
 const viewCopy: Record<View, [string, string]> = {
@@ -116,11 +142,14 @@ export default function Home() {
   const [barCustomer, setBarCustomer] = useState("");
   const [drugstorePayment, setDrugstorePayment] = useState("Efectivo");
   const [barPayment, setBarPayment] = useState("Efectivo");
+  const [tablePayment, setTablePayment] = useState("Efectivo");
   const [reportDate, setReportDate] = useState(() => dateKey(new Date()));
   const [selectedTableId, setSelectedTableId] = useState(seedState.tables[0]?.id ?? "");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
+  const [closingCash, setClosingCash] = useState<CashSession | null>(null);
+  const [movementCash, setMovementCash] = useState<CashSession | null>(null);
   const saleInProgressRef = useRef(false);
 
   useEffect(() => {
@@ -170,6 +199,7 @@ export default function Home() {
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "bar_tables" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions" }, scheduleRefresh)
       .subscribe();
     return () => {
       active = false;
@@ -190,6 +220,8 @@ export default function Home() {
   const todaySales = useMemo(() => state.sales.filter((sale) => isToday(sale.createdAt)), [state.sales]);
   const drugstoreSales = state.sales.filter((sale) => sale.area === "drugstore");
   const barSales = state.sales.filter((sale) => sale.area === "bar");
+  const openDrugstoreCash = state.cashSessions.find((cash) => cash.area === "drugstore" && cash.status === "abierta");
+  const openBarCash = state.cashSessions.find((cash) => cash.area === "bar" && cash.status === "abierta");
   const selectedDaySales = state.sales.filter((sale) => dateKey(new Date(sale.createdAt)) === reportDate);
   const selectedDayDrugstoreSales = selectedDaySales.filter((sale) => sale.area === "drugstore");
   const selectedDayBarSales = selectedDaySales.filter((sale) => sale.area === "bar");
@@ -274,6 +306,11 @@ export default function Home() {
   }
 
   function createSale(area: Area, saleCustomer: string, salePayment: string, items: LineItem[]) {
+    const cashSession = area === "drugstore" ? openDrugstoreCash : openBarCash;
+    if (!cashSession) {
+      window.alert("Primero tenes que abrir la caja.");
+      return null;
+    }
     const sale: Sale = {
       id: crypto.randomUUID(),
       ticketNumber: nextTicketNumber(state.sales, area),
@@ -283,6 +320,7 @@ export default function Home() {
       payment: salePayment,
       items,
       total: total(items),
+      cashSessionId: cashSession.id,
     };
     mutate({
       ...state,
@@ -305,6 +343,10 @@ export default function Home() {
       area === "drugstore" ? drugstorePayment : barPayment,
       cart,
     );
+    if (!sale) {
+      saleInProgressRef.current = false;
+      return;
+    }
     if (area === "drugstore") {
       setDrugstoreCart([]);
       setDrugstoreCustomer("");
@@ -318,6 +360,10 @@ export default function Home() {
 
   function closeTable() {
     if (!selectedTable?.items.length || saleInProgressRef.current) return;
+    if (!openBarCash) {
+      window.alert("Primero tenes que abrir la caja del Bar.");
+      return;
+    }
     saleInProgressRef.current = true;
     const sale: Sale = {
       id: crypto.randomUUID(),
@@ -325,9 +371,10 @@ export default function Home() {
       createdAt: new Date().toISOString(),
       area: "bar",
       customer: selectedTable.name,
-      payment: "Mesa",
+      payment: tablePayment,
       items: selectedTable.items,
       total: tableSum,
+      cashSessionId: openBarCash.id,
     };
     mutate({
       ...state,
@@ -335,8 +382,57 @@ export default function Home() {
       sales: [...state.sales, sale],
       tables: state.tables.map((table) => table.id === selectedTable.id ? { ...table, status: "vacio", items: [] } : table),
     });
+    setTablePayment("Efectivo");
     setTimeout(() => printTicket(state.settings, sale), 50);
     setTimeout(() => { saleInProgressRef.current = false; }, 1200);
+  }
+
+  async function openCash(area: Area, openingAmount: number) {
+    const cashSession: CashSession = {
+      id: crypto.randomUUID(),
+      area,
+      status: "abierta",
+      openedAt: new Date().toISOString(),
+      openedBy: session?.user.email ?? "Usuario",
+      openingAmount,
+      movements: [],
+    };
+    const { error } = await supabase.from("cash_sessions").insert({ id: cashSession.id, payload: cashSession, opened_at: cashSession.openedAt, updated_at: cashSession.openedAt });
+    if (error) {
+      window.alert("No se pudo abrir la caja. Puede que ya exista otra caja abierta.");
+      return;
+    }
+    setState((current) => ({ ...current, cashSessions: [...current.cashSessions, cashSession] }));
+  }
+
+  function addCashMovement(cashSession: CashSession, movement: Omit<CashMovement, "id" | "createdAt">) {
+    const nextMovement: CashMovement = { ...movement, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+    mutate({
+      ...state,
+      cashSessions: state.cashSessions.map((cash) => cash.id === cashSession.id ? { ...cash, movements: [...cash.movements, nextMovement] } : cash),
+    });
+    setMovementCash(null);
+  }
+
+  async function closeCash(cashSession: CashSession, countedAmount: number) {
+    const expectedAmount = cashExpected(cashSession, state.sales);
+    const closed: CashSession = {
+      ...cashSession,
+      status: "cerrada",
+      closedAt: new Date().toISOString(),
+      closedBy: session?.user.email ?? "Usuario",
+      countedAmount,
+      expectedAmount,
+      difference: countedAmount - expectedAmount,
+    };
+    const { error } = await supabase.from("cash_sessions").upsert({ id: closed.id, payload: closed, opened_at: closed.openedAt, closed_at: closed.closedAt, updated_at: closed.closedAt });
+    if (error) {
+      window.alert("No se pudo cerrar la caja. Intenta nuevamente.");
+      return;
+    }
+    setState((current) => ({ ...current, cashSessions: current.cashSessions.map((cash) => cash.id === closed.id ? closed : cash) }));
+    setClosingCash(null);
+    printCashClose(state.settings, closed, state.sales);
   }
 
   function setTableStatus(tableId: string, status: TableStatus) {
@@ -481,7 +577,11 @@ export default function Home() {
           </>
         )}
 
-        {view === "drugstore" && (
+        {view === "drugstore" && !openDrugstoreCash && <CashOpen area="drugstore" onOpen={(amount) => openCash("drugstore", amount)} />}
+
+        {view === "drugstore" && openDrugstoreCash && (
+          <>
+          <CashBar cashSession={openDrugstoreCash} sales={state.sales} onMovement={() => setMovementCash(openDrugstoreCash)} onClose={() => setClosingCash(openDrugstoreCash)} />
           <section className={styles.drugstoreSection}>
             <div className={styles.drugstoreNav}>
               <SegmentedControl
@@ -533,9 +633,14 @@ export default function Home() {
               )}
             </div>
           </section>
+          </>
         )}
 
-        {view === "bar" && (
+        {view === "bar" && !openBarCash && <CashOpen area="bar" onOpen={(amount) => openCash("bar", amount)} />}
+
+        {view === "bar" && openBarCash && (
+          <>
+          <CashBar cashSession={openBarCash} sales={state.sales} onMovement={() => setMovementCash(openBarCash)} onClose={() => setClosingCash(openBarCash)} />
           <section className={styles.barSection}>
             <div className={styles.barNav}>
               <SegmentedControl
@@ -580,7 +685,7 @@ export default function Home() {
                       <button disabled={!selectedTable?.items.length} className={`${styles.deliveredStatusButton} ${selectedTable?.status === "entregado" ? styles.statusActive : ""}`} onClick={() => selectedTable && setTableStatus(selectedTable.id, "entregado")}>Entregado</button>
                     </div>
                     <Cart items={selectedTable?.items ?? []} onQty={(id, delta) => changeQty(id, delta, "table")} />
-                    <div className={styles.checkoutFooter}><Total label="Total mesa" value={tableSum} /></div>
+                    <div className={styles.checkoutFooter}><label>Forma de pago<select value={tablePayment} onChange={(event) => setTablePayment(event.target.value)}><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cuenta corriente</option></select></label><Total label="Total mesa" value={tableSum} /></div>
                   </Panel>
                 </div>
               </div>
@@ -610,6 +715,7 @@ export default function Home() {
             )}
             </div>
           </section>
+          </>
         )}
 
         {view === "reports" && (
@@ -635,6 +741,7 @@ export default function Home() {
               <SalesTable title="Facturacion Drugstore" sales={drugstoreSales} settings={state.settings} />
               <SalesTable title="Facturacion Bar" sales={barSales} settings={state.settings} />
             </div>
+            <CashHistory cashSessions={state.cashSessions} sales={state.sales} settings={state.settings} />
           </>
         )}
 
@@ -649,6 +756,8 @@ export default function Home() {
       {editingProduct && <ProductModal product={editingProduct} onCancel={() => setEditingProduct(null)} onSave={saveProduct} />}
       {stockProduct && <StockModal product={stockProduct} onCancel={() => setStockProduct(null)} onSave={(quantity) => addStock(stockProduct.id, quantity)} />}
       {barcodeProduct && <BarcodeListModal product={barcodeProduct} onClose={() => setBarcodeProduct(null)} />}
+      {movementCash && <CashMovementModal cashSession={movementCash} onCancel={() => setMovementCash(null)} onSave={(movement) => addCashMovement(movementCash, movement)} />}
+      {closingCash && <CashCloseModal cashSession={closingCash} sales={state.sales} onCancel={() => setClosingCash(null)} onClose={(countedAmount) => closeCash(closingCash, countedAmount)} />}
     </div>
   );
 }
@@ -682,6 +791,38 @@ function LoginScreen() {
 
 function SystemMessage({ title, text }: { title: string; text: string }) {
   return <main className={styles.accessPage}><section className={styles.systemMessage}><Image className={styles.accessLogo} src="/al-toque-logo.png" alt="Al toque" width={88} height={88} priority /><h1>{title}</h1><p>{text}</p></section></main>;
+}
+
+function CashOpen({ area, onOpen }: { area: Area; onOpen: (amount: number) => void | Promise<void> }) {
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  return <section className={styles.cashOpen}><div><span>Caja cerrada</span><h2>Abrir caja de {labelArea(area)}</h2><p>Ingresa el efectivo disponible al comenzar este turno.</p></div><form onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onOpen(Number(amount || 0)); setLoading(false); }}><label>Efectivo inicial<input autoFocus type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="$ 0" /></label><button className={styles.primaryButton} disabled={loading}>{loading ? "Abriendo..." : "Abrir caja"}</button></form></section>;
+}
+
+function CashBar({ cashSession, sales, onMovement, onClose }: { cashSession: CashSession; sales: Sale[]; onMovement: () => void; onClose: () => void }) {
+  const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
+  return <section className={styles.cashBar}><div><span>Caja abierta</span><strong>{labelArea(cashSession.area)}</strong><small>Desde {date(cashSession.openedAt)} - {cashSession.openedBy}</small></div><div className={styles.cashBarMetrics}><div><span>Ventas</span><strong>{money(sessionSales.reduce((sum, sale) => sum + sale.total, 0))}</strong></div><div><span>Efectivo esperado</span><strong>{money(cashExpected(cashSession, sales))}</strong></div></div><div className={styles.cashBarActions}><button className={styles.smallButton} onClick={onMovement}>Registrar movimiento</button><button className={styles.closeCashButton} onClick={onClose}>Cerrar caja</button></div></section>;
+}
+
+function CashMovementModal({ cashSession, onCancel, onSave }: { cashSession: CashSession; onCancel: () => void; onSave: (movement: Omit<CashMovement, "id" | "createdAt">) => void }) {
+  const [type, setType] = useState<CashMovement["type"]>("gasto");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ type, amount: Number(amount), reason }); }}><h2>Movimiento de caja</h2><div className={styles.stockSummary}><strong>{labelArea(cashSession.area)}</strong><span>Caja abierta</span></div><label>Tipo<select value={type} onChange={(event) => setType(event.target.value as CashMovement["type"])}><option value="ingreso">Ingreso de efectivo</option><option value="gasto">Gasto</option><option value="retiro">Retiro de efectivo</option></select></label><label>Importe<input required type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></label><label>Motivo<input required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ej: pago a proveedor" /></label><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar movimiento</button></div></form></div>;
+}
+
+function CashCloseModal({ cashSession, sales, onCancel, onClose }: { cashSession: CashSession; sales: Sale[]; onCancel: () => void; onClose: (countedAmount: number) => void | Promise<void> }) {
+  const [counted, setCounted] = useState("");
+  const [loading, setLoading] = useState(false);
+  const expected = cashExpected(cashSession, sales);
+  const difference = counted === "" ? null : Number(counted) - expected;
+  const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
+  return <div className={styles.modalBackdrop}><form className={`${styles.modal} ${styles.cashCloseModal}`} onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onClose(Number(counted)); setLoading(false); }}><h2>Cerrar caja de {labelArea(cashSession.area)}</h2><div className={styles.cashCloseSummary}><Total label="Efectivo inicial" value={cashSession.openingAmount} /><Total label="Ventas en efectivo" value={paymentTotal(sessionSales, "Efectivo")} /><Total label="Transferencias" value={paymentTotal(sessionSales, "Transferencia")} /><Total label="Tarjetas" value={paymentTotal(sessionSales, "Tarjeta")} /><Total label="Ingresos" value={movementTotal(cashSession, "ingreso")} /><Total label="Gastos" value={movementTotal(cashSession, "gasto")} /><Total label="Retiros" value={movementTotal(cashSession, "retiro")} /><div className={styles.expectedCash}><span>Efectivo esperado</span><strong>{money(expected)}</strong></div></div><label>Efectivo contado<input autoFocus required type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} /></label>{difference !== null && <div className={`${styles.cashDifference} ${difference === 0 ? styles.exactCash : difference < 0 ? styles.missingCash : styles.extraCash}`}><span>Diferencia</span><strong>{money(difference)}</strong></div>}<div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.closeCashButton} disabled={loading}>{loading ? "Cerrando..." : "Confirmar cierre"}</button></div></form></div>;
+}
+
+function CashHistory({ cashSessions, sales, settings }: { cashSessions: CashSession[]; sales: Sale[]; settings: AppState["settings"] }) {
+  const closed = cashSessions.filter((cash) => cash.status === "cerrada").sort((a, b) => new Date(b.closedAt ?? 0).getTime() - new Date(a.closedAt ?? 0).getTime());
+  return <Panel title="Historial de cierres"><div className={styles.tableWrap}><table><thead><tr><th>Area</th><th>Responsable</th><th>Apertura</th><th>Cierre</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th /></tr></thead><tbody>{closed.map((cash) => <tr key={cash.id}><td>{labelArea(cash.area)}</td><td>{cash.closedBy ?? cash.openedBy}</td><td>{date(cash.openedAt)}</td><td>{cash.closedAt ? date(cash.closedAt) : "-"}</td><td>{money(cash.expectedAmount ?? 0)}</td><td>{money(cash.countedAmount ?? 0)}</td><td className={(cash.difference ?? 0) < 0 ? styles.low : ""}>{money(cash.difference ?? 0)}</td><td><button className={styles.smallButton} onClick={() => printCashClose(settings, cash, sales)}>Reimprimir</button></td></tr>)}</tbody></table></div><ListEmpty show={!closed.length} text="Todavia no hay cierres de caja." /></Panel>;
 }
 
 function SegmentedControl({ options, value, onChange, tone }: { options: [string, string][]; value: string; onChange: (value: string) => void; tone?: "drugstore" | "bar" }) {
@@ -913,6 +1054,23 @@ function total(items: LineItem[]) {
   return items.reduce((sum, item) => sum + item.price * item.qty, 0);
 }
 
+function paymentTotal(sales: Sale[], payment: string) {
+  return sales.filter((sale) => sale.payment === payment).reduce((sum, sale) => sum + sale.total, 0);
+}
+
+function movementTotal(cashSession: CashSession, type: CashMovement["type"]) {
+  return cashSession.movements.filter((movement) => movement.type === type).reduce((sum, movement) => sum + movement.amount, 0);
+}
+
+function cashExpected(cashSession: CashSession, sales: Sale[]) {
+  const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
+  return cashSession.openingAmount
+    + paymentTotal(sessionSales, "Efectivo")
+    + movementTotal(cashSession, "ingreso")
+    - movementTotal(cashSession, "gasto")
+    - movementTotal(cashSession, "retiro");
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(value || 0);
 }
@@ -984,8 +1142,9 @@ function normalizeState(state: AppState): AppState {
         ? { ...product, barcodes, stock: product.stock || 999999, min: 0 }
         : { ...product, barcodes };
     }),
-    sales: state.sales.map((sale, index) => ({ ...sale, ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
+    sales: state.sales.map((sale, index) => ({ ...sale, cashSessionId: sale.cashSessionId ?? "", ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
     tables: state.tables.map((table) => ({ ...table, status: table.items.length ? (table.status === "entregado" ? "entregado" : "preparacion") : "vacio" })),
+    cashSessions: (state.cashSessions ?? []).map((cash) => ({ ...cash, openedBy: cash.openedBy ?? "Usuario", movements: cash.movements ?? [] })),
   };
 }
 
@@ -1003,13 +1162,14 @@ function numberValue(value: string) {
 }
 
 async function loadRemoteState(): Promise<AppState> {
-  const [settingsResult, productsResult, salesResult, tablesResult] = await Promise.all([
+  const [settingsResult, productsResult, salesResult, tablesResult, cashResult] = await Promise.all([
     supabase.from("app_settings").select("payload").eq("id", "business").maybeSingle(),
     supabase.from("products").select("payload"),
     supabase.from("sales").select("payload").order("created_at", { ascending: true }),
     supabase.from("bar_tables").select("payload"),
+    supabase.from("cash_sessions").select("payload").order("opened_at", { ascending: true }),
   ]);
-  const error = settingsResult.error || productsResult.error || salesResult.error || tablesResult.error;
+  const error = settingsResult.error || productsResult.error || salesResult.error || tablesResult.error || cashResult.error;
   if (error) throw error;
 
   let settings = settingsResult.data?.payload as AppState["settings"] | undefined;
@@ -1024,6 +1184,7 @@ async function loadRemoteState(): Promise<AppState> {
     products: (productsResult.data ?? []).map((row) => row.payload as Product),
     sales: (salesResult.data ?? []).map((row) => row.payload as Sale),
     tables: (tablesResult.data ?? []).map((row) => row.payload as TableOrder).sort(compareTables),
+    cashSessions: (cashResult.data ?? []).map((row) => row.payload as CashSession),
   });
 }
 
@@ -1036,10 +1197,11 @@ async function persistStateChanges(previous: AppState, next: AppState) {
     syncRows("products", previous.products, next.products),
     syncRows("sales", previous.sales, next.sales),
     syncRows("bar_tables", previous.tables, next.tables),
+    syncRows("cash_sessions", previous.cashSessions, next.cashSessions),
   ]);
 }
 
-async function syncRows<T extends { id: string }>(table: "products" | "sales" | "bar_tables", previous: T[], next: T[]) {
+async function syncRows<T extends { id: string }>(table: "products" | "sales" | "bar_tables" | "cash_sessions", previous: T[], next: T[]) {
   const previousById = new Map(previous.map((item) => [item.id, item]));
   const changed = next.filter((item) => JSON.stringify(previousById.get(item.id)) !== JSON.stringify(item));
   const nextIds = new Set(next.map((item) => item.id));
@@ -1047,9 +1209,14 @@ async function syncRows<T extends { id: string }>(table: "products" | "sales" | 
 
   if (changed.length) {
     const now = new Date().toISOString();
-    const rows = changed.map((item) => table === "sales"
-      ? { id: item.id, payload: item, created_at: (item as unknown as Sale).createdAt }
-      : { id: item.id, payload: item, updated_at: now });
+    const rows = changed.map((item) => {
+      if (table === "sales") return { id: item.id, payload: item, created_at: (item as unknown as Sale).createdAt };
+      if (table === "cash_sessions") {
+        const cash = item as unknown as CashSession;
+        return { id: item.id, payload: item, opened_at: cash.openedAt, closed_at: cash.closedAt ?? null, updated_at: now };
+      }
+      return { id: item.id, payload: item, updated_at: now };
+    });
     const { error } = await supabase.from(table).upsert(rows);
     if (error) throw error;
   }
@@ -1065,6 +1232,17 @@ function printTicket(settings: AppState["settings"], sale: Sale) {
   const ticket = document.createElement("section");
   ticket.id = "printTicket";
   ticket.innerHTML = `<header><h2>${settings.businessName}</h2><p>${settings.businessAddress}</p>${settings.businessPhone ? `<p>${settings.businessPhone}</p>` : ""}</header><hr><div class="ticketMeta"><p>Ticket: ${sale.ticketNumber}</p><p>Fecha: ${date(sale.createdAt)}</p><p>Area: ${labelArea(sale.area)}</p><p>Cliente: ${sale.customer}</p></div><hr><div class="ticketItems">${sale.items.map((item) => `<div class="ticketItem"><strong>${item.name}</strong><div><span>${item.qty} x ${money(item.price)}</span><strong>${money(item.qty * item.price)}</strong></div></div>`).join("")}</div><hr><div class="ticketTotal"><span>TOTAL</span><strong>${money(sale.total)}</strong></div><p>Pago: ${sale.payment}</p><footer>${settings.ticketFooter}</footer>`;
+  document.body.appendChild(ticket);
+  window.requestAnimationFrame(() => window.print());
+}
+
+function printCashClose(settings: AppState["settings"], cashSession: CashSession, sales: Sale[]) {
+  const old = document.getElementById("printTicket");
+  old?.remove();
+  const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
+  const ticket = document.createElement("section");
+  ticket.id = "printTicket";
+  ticket.innerHTML = `<header><h2>${settings.businessName}</h2><p>CIERRE DE CAJA</p><p>${labelArea(cashSession.area)}</p></header><hr><div class="ticketMeta"><p>Apertura: ${date(cashSession.openedAt)}</p><p>Cierre: ${cashSession.closedAt ? date(cashSession.closedAt) : "Caja abierta"}</p><p>Operaciones: ${sessionSales.length}</p></div><hr><div class="ticketItems"><div class="ticketItem"><div><span>Efectivo inicial</span><strong>${money(cashSession.openingAmount)}</strong></div></div><div class="ticketItem"><div><span>Ventas efectivo</span><strong>${money(paymentTotal(sessionSales, "Efectivo"))}</strong></div></div><div class="ticketItem"><div><span>Transferencias</span><strong>${money(paymentTotal(sessionSales, "Transferencia"))}</strong></div></div><div class="ticketItem"><div><span>Tarjetas</span><strong>${money(paymentTotal(sessionSales, "Tarjeta"))}</strong></div></div><div class="ticketItem"><div><span>Ingresos</span><strong>${money(movementTotal(cashSession, "ingreso"))}</strong></div></div><div class="ticketItem"><div><span>Gastos</span><strong>-${money(movementTotal(cashSession, "gasto"))}</strong></div></div><div class="ticketItem"><div><span>Retiros</span><strong>-${money(movementTotal(cashSession, "retiro"))}</strong></div></div></div><hr><div class="ticketTotal"><span>ESPERADO</span><strong>${money(cashSession.expectedAmount ?? cashExpected(cashSession, sales))}</strong></div><div class="ticketTotal"><span>CONTADO</span><strong>${money(cashSession.countedAmount ?? 0)}</strong></div><div class="ticketTotal"><span>DIFERENCIA</span><strong>${money(cashSession.difference ?? 0)}</strong></div><footer>Cierre guardado en el sistema</footer>`;
   document.body.appendChild(ticket);
   window.requestAnimationFrame(() => window.print());
 }
