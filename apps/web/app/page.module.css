@@ -461,7 +461,7 @@
 
 .moduleChoiceGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
   margin-bottom: 22px;
 }
@@ -497,6 +497,31 @@
 
 .barChoice {
   background: #8f4a2f;
+}
+
+.stockChoice {
+  background: #2f6b4f;
+}
+
+.stockOnlyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid #dcc5aa;
+  background: #2f6b4f;
+  color: #fff;
+  padding: 18px 20px;
+}
+
+.stockOnlyHeader strong {
+  font-size: 20px;
+}
+
+.stockOnlyHeader span {
+  color: #dcefe4;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .moduleHeader {
@@ -1613,6 +1638,12 @@
 
   .cashOpen {
     padding: 18px;
+  }
+
+  .stockOnlyHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .cashHistoryHeader,

@@ -83,7 +83,7 @@ type AppState = {
   cashSessions: CashSession[];
 };
 
-type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
+type View = "dashboard" | "drugstore" | "bar" | "stock" | "reports" | "settings";
 type DrugstoreOption = "venta" | "stock";
 type BarOption = "mesas" | "menu" | "venta";
 
@@ -104,6 +104,7 @@ const viewCopy: Record<View, [string, string]> = {
   dashboard: ["Resumen", "Ventas, stock y mesas en un solo lugar."],
   drugstore: ["Drugstore", "Ventas, tickets y stock del drugstore."],
   bar: ["Bar", "Menu, mesas, estados de pedido y ventas del bar."],
+  stock: ["Control de stock", "Productos, cantidades y codigos de barras del drugstore."],
   reports: ["Reportes", "Control de que se vende y por donde entra la plata."],
   settings: ["Ajustes", "Datos que aparecen en los tickets."],
 };
@@ -575,6 +576,11 @@ export default function Home() {
                 <strong>Bar</strong>
                 <small>{openTables.length} mesas con pedido</small>
               </button>
+              <button className={`${styles.moduleChoice} ${styles.stockChoice}`} onClick={() => setView("stock")}>
+                <span>Entrar a</span>
+                <strong>Solo stock</strong>
+                <small>{lowDrugstoreStock.length} productos para reponer</small>
+              </button>
             </div>
           </>
         )}
@@ -636,6 +642,33 @@ export default function Home() {
             </div>
           </section>
           </>
+        )}
+
+        {view === "stock" && (
+          <section className={styles.drugstoreSection}>
+            <div className={styles.stockOnlyHeader}><strong>Control de stock</strong><span>Acceso sin apertura de caja</span></div>
+            <div className={styles.drugstoreContent}>
+              <div className={styles.inventoryLayout}>
+                <ProductTable
+                  title="Inventario"
+                  products={drugstoreProducts}
+                  onAdd={() => setEditingProduct({ ...blankProduct, area: "drugstore" })}
+                  onEdit={setEditingProduct}
+                  onDelete={deleteProduct}
+                  onAddStock={setStockProduct}
+                  onViewBarcodes={setBarcodeProduct}
+                  variant="inventory"
+                  hideCategory
+                  pageSize={20}
+                />
+                {lowDrugstoreStock.length > 0 && (
+                  <Panel title="Necesitan reposicion" variant="alert">
+                    {lowDrugstoreStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
+                  </Panel>
+                )}
+              </div>
+            </div>
+          </section>
         )}
 
         {view === "bar" && !openBarCash && <CashOpen area="bar" onOpen={(amount) => openCash("bar", amount)} />}
