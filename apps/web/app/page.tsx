@@ -83,7 +83,7 @@ type AppState = {
   cashSessions: CashSession[];
 };
 
-type View = "dashboard" | "drugstore" | "bar" | "stock" | "reports" | "settings";
+type View = "dashboard" | "drugstore" | "bar" | "reports" | "settings";
 type DrugstoreOption = "venta" | "stock";
 type BarOption = "mesas" | "menu" | "venta";
 
@@ -104,7 +104,6 @@ const viewCopy: Record<View, [string, string]> = {
   dashboard: ["Resumen", "Ventas, stock y mesas en un solo lugar."],
   drugstore: ["Drugstore", "Ventas, tickets y stock del drugstore."],
   bar: ["Bar", "Menu, mesas, estados de pedido y ventas del bar."],
-  stock: ["Control de stock", "Productos, cantidades y codigos de barras del drugstore."],
   reports: ["Reportes", "Control de que se vende y por donde entra la plata."],
   settings: ["Ajustes", "Datos que aparecen en los tickets."],
 };
@@ -151,6 +150,7 @@ export default function Home() {
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [closingCash, setClosingCash] = useState<CashSession | null>(null);
   const [movementCash, setMovementCash] = useState<CashSession | null>(null);
+  const [managementMode, setManagementMode] = useState<Area | null>(null);
   const saleInProgressRef = useRef(false);
 
   useEffect(() => {
@@ -406,6 +406,7 @@ export default function Home() {
       return;
     }
     setState((current) => ({ ...current, cashSessions: [...current.cashSessions, cashSession] }));
+    setManagementMode(null);
   }
 
   function addCashMovement(cashSession: CashSession, movement: Omit<CashMovement, "id" | "createdAt">) {
@@ -544,7 +545,7 @@ export default function Home() {
       <main className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.headerBrand}>
-            <button className={styles.logoButton} onClick={() => setView("dashboard")} aria-label="Volver al inicio">
+            <button className={styles.logoButton} onClick={() => { setView("dashboard"); setManagementMode(null); }} aria-label="Volver al inicio">
               <Image className={styles.brandLogo} src="/al-toque-logo.png" alt="Al toque" width={72} height={72} priority />
             </button>
             <div>
@@ -554,7 +555,7 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.topActions}>
-            {view !== "dashboard" && <button className={`${styles.textButton} ${styles.homeButton}`} onClick={() => setView("dashboard")}>Inicio</button>}
+            {view !== "dashboard" && <button className={`${styles.textButton} ${styles.homeButton}`} onClick={() => { setView("dashboard"); setManagementMode(null); }}>Inicio</button>}
             <button className={styles.textButton} onClick={() => setView("reports")}>Reportes</button>
             <button className={styles.textButton} onClick={() => setView("settings")}>Ajustes</button>
             <button className={styles.textButton} onClick={() => void supabase.auth.signOut()}>Salir</button>
@@ -566,35 +567,30 @@ export default function Home() {
         {view === "dashboard" && (
           <>
             <div className={styles.moduleChoiceGrid}>
-              <button className={`${styles.moduleChoice} ${styles.drugstoreChoice}`} onClick={() => setView("drugstore")}>
+              <button className={`${styles.moduleChoice} ${styles.drugstoreChoice}`} onClick={() => { setView("drugstore"); setManagementMode(null); }}>
                 <span>Entrar a</span>
                 <strong>Drugstore</strong>
                 <small>{money(todayDrugstoreSales.reduce((sum, sale) => sum + sale.total, 0))} vendidos hoy</small>
               </button>
-              <button className={`${styles.moduleChoice} ${styles.barChoice}`} onClick={() => setView("bar")}>
+              <button className={`${styles.moduleChoice} ${styles.barChoice}`} onClick={() => { setView("bar"); setManagementMode(null); }}>
                 <span>Entrar a</span>
                 <strong>Bar</strong>
                 <small>{openTables.length} mesas con pedido</small>
-              </button>
-              <button className={`${styles.moduleChoice} ${styles.stockChoice}`} onClick={() => setView("stock")}>
-                <span>Entrar a</span>
-                <strong>Solo stock</strong>
-                <small>{lowDrugstoreStock.length} productos para reponer</small>
               </button>
             </div>
           </>
         )}
 
-        {view === "drugstore" && !openDrugstoreCash && <CashOpen area="drugstore" onOpen={(amount) => openCash("drugstore", amount)} />}
+        {view === "drugstore" && !openDrugstoreCash && managementMode !== "drugstore" && <CashOpen area="drugstore" onOpen={(amount) => openCash("drugstore", amount)} onManage={() => { setManagementMode("drugstore"); setDrugstoreOption("stock"); }} />}
 
-        {view === "drugstore" && openDrugstoreCash && (
+        {view === "drugstore" && (openDrugstoreCash || managementMode === "drugstore") && (
           <>
-          <CashBar cashSession={openDrugstoreCash} sales={state.sales} onMovement={() => setMovementCash(openDrugstoreCash)} onClose={() => setClosingCash(openDrugstoreCash)} />
+          {openDrugstoreCash && <CashBar cashSession={openDrugstoreCash} sales={state.sales} onMovement={() => setMovementCash(openDrugstoreCash)} onClose={() => setClosingCash(openDrugstoreCash)} />}
           <section className={styles.drugstoreSection}>
             <div className={styles.drugstoreNav}>
               <SegmentedControl
                 tone="drugstore"
-                options={[
+                options={!openDrugstoreCash ? [["stock", "Control de stock"]] : [
                   ["venta", "Venta y tickets"],
                   ["stock", lowDrugstoreStock.length > 0 ? `Control de stock - ${lowDrugstoreStock.length} alertas` : "Control de stock"],
                 ]}
@@ -644,43 +640,16 @@ export default function Home() {
           </>
         )}
 
-        {view === "stock" && (
-          <section className={styles.drugstoreSection}>
-            <div className={styles.stockOnlyHeader}><strong>Control de stock</strong><span>Acceso sin apertura de caja</span></div>
-            <div className={styles.drugstoreContent}>
-              <div className={styles.inventoryLayout}>
-                <ProductTable
-                  title="Inventario"
-                  products={drugstoreProducts}
-                  onAdd={() => setEditingProduct({ ...blankProduct, area: "drugstore" })}
-                  onEdit={setEditingProduct}
-                  onDelete={deleteProduct}
-                  onAddStock={setStockProduct}
-                  onViewBarcodes={setBarcodeProduct}
-                  variant="inventory"
-                  hideCategory
-                  pageSize={20}
-                />
-                {lowDrugstoreStock.length > 0 && (
-                  <Panel title="Necesitan reposicion" variant="alert">
-                    {lowDrugstoreStock.map((product) => <ListItem key={product.id} title={product.name} meta={`Quedan ${product.stock}. Minimo sugerido: ${product.min}`} />)}
-                  </Panel>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
+        {view === "bar" && !openBarCash && managementMode !== "bar" && <CashOpen area="bar" onOpen={(amount) => openCash("bar", amount)} onManage={() => { setManagementMode("bar"); setBarOption("menu"); }} />}
 
-        {view === "bar" && !openBarCash && <CashOpen area="bar" onOpen={(amount) => openCash("bar", amount)} />}
-
-        {view === "bar" && openBarCash && (
+        {view === "bar" && (openBarCash || managementMode === "bar") && (
           <>
-          <CashBar cashSession={openBarCash} sales={state.sales} onMovement={() => setMovementCash(openBarCash)} onClose={() => setClosingCash(openBarCash)} />
+          {openBarCash && <CashBar cashSession={openBarCash} sales={state.sales} onMovement={() => setMovementCash(openBarCash)} onClose={() => setClosingCash(openBarCash)} />}
           <section className={styles.barSection}>
             <div className={styles.barNav}>
               <SegmentedControl
                 tone="bar"
-                options={[
+                options={!openBarCash ? [["menu", "Gestionar menu"]] : [
                   ["mesas", "Mesas y pedidos"],
                   ["menu", "Menu"],
                   ["venta", "Venta barra"],
@@ -828,10 +797,10 @@ function SystemMessage({ title, text }: { title: string; text: string }) {
   return <main className={styles.accessPage}><section className={styles.systemMessage}><Image className={styles.accessLogo} src="/al-toque-logo.png" alt="Al toque" width={88} height={88} priority /><h1>{title}</h1><p>{text}</p></section></main>;
 }
 
-function CashOpen({ area, onOpen }: { area: Area; onOpen: (amount: number) => void | Promise<void> }) {
+function CashOpen({ area, onOpen, onManage }: { area: Area; onOpen: (amount: number) => void | Promise<void>; onManage: () => void }) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  return <section className={styles.cashOpen}><div><span>Caja cerrada</span><h2>Abrir caja de {labelArea(area)}</h2><p>Ingresa el efectivo disponible al comenzar este turno.</p></div><form onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onOpen(Number(amount || 0)); setLoading(false); }}><label>Efectivo inicial<input autoFocus type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="$ 0" /></label><button className={styles.primaryButton} disabled={loading}>{loading ? "Abriendo..." : "Abrir caja"}</button></form></section>;
+  return <section className={styles.cashOpen}><div><span>Caja cerrada</span><h2>Abrir caja de {labelArea(area)}</h2><p>Ingresa el efectivo disponible al comenzar este turno.</p></div><form onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onOpen(Number(amount || 0)); setLoading(false); }}><label>Efectivo inicial<input autoFocus type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="$ 0" /></label><button className={styles.primaryButton} disabled={loading}>{loading ? "Abriendo..." : "Abrir caja"}</button><div className={styles.cashOpenDivider}><span>o continuar sin vender</span></div><button type="button" className={styles.manageOnlyButton} onClick={onManage}>{area === "drugstore" ? "Control de stock" : "Gestionar menu"}</button></form></section>;
 }
 
 function CashBar({ cashSession, sales, onMovement, onClose }: { cashSession: CashSession; sales: Sale[]; onMovement: () => void; onClose: () => void }) {

@@ -258,6 +258,33 @@
   font-weight: 900;
 }
 
+.cashOpenDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #856a55;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cashOpenDivider::before,
+.cashOpenDivider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #e6d3bd;
+}
+
+.manageOnlyButton {
+  min-height: 42px;
+  border: 2px solid #2f6b4f;
+  border-radius: 8px;
+  background: #edf5f0;
+  color: #285c44;
+  font-weight: 900;
+}
+
 .cashBar {
   display: grid;
   grid-template-columns: minmax(180px, 0.7fr) minmax(320px, 1.4fr) auto;
@@ -461,7 +488,7 @@
 
 .moduleChoiceGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
   margin-bottom: 22px;
 }
@@ -497,31 +524,6 @@
 
 .barChoice {
   background: #8f4a2f;
-}
-
-.stockChoice {
-  background: #2f6b4f;
-}
-
-.stockOnlyHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  border-bottom: 1px solid #dcc5aa;
-  background: #2f6b4f;
-  color: #fff;
-  padding: 18px 20px;
-}
-
-.stockOnlyHeader strong {
-  font-size: 20px;
-}
-
-.stockOnlyHeader span {
-  color: #dcefe4;
-  font-size: 13px;
-  font-weight: 800;
 }
 
 .moduleHeader {
@@ -1638,12 +1640,6 @@
 
   .cashOpen {
     padding: 18px;
-  }
-
-  .stockOnlyHeader {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
   }
 
   .cashHistoryHeader,
