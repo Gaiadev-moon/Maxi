@@ -386,6 +386,79 @@
   color: #684600;
 }
 
+.cashHistorySection {
+  display: grid;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.cashHistoryHeader,
+.archiveTitle {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.cashHistoryHeader {
+  background: #3b2418;
+  color: #fff3d2;
+}
+
+.cashHistoryHeader span,
+.archiveTitle span {
+  color: #c9974b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cashHistoryHeader h2,
+.archiveTitle h2 {
+  margin-top: 4px;
+  font-size: 22px;
+}
+
+.cashDateFilter {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.cashDateFilter label {
+  color: #f1d9bc;
+  font-weight: 800;
+}
+
+.cashDateFilter input {
+  min-width: 190px;
+  background: #fffaf2;
+}
+
+.cashHistorySection > .panel,
+.archivedTickets > .panel {
+  margin-bottom: 0;
+}
+
+.archivedTickets {
+  display: grid;
+  gap: 12px;
+  border-left: 5px solid #c9974b;
+  padding-left: 14px;
+}
+
+.archiveTitle {
+  align-items: center;
+  border: 1px solid #e6d3bd;
+  background: #fff5e8;
+}
+
+.archiveTitle h2 {
+  color: #3b2418;
+}
+
 .moduleChoiceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1540,6 +1613,17 @@
 
   .cashOpen {
     padding: 18px;
+  }
+
+  .cashHistoryHeader,
+  .archiveTitle,
+  .cashDateFilter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cashDateFilter input {
+    min-width: 0;
   }
 
   .expectedCash {

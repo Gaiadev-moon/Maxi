@@ -222,6 +222,8 @@ export default function Home() {
   const barSales = state.sales.filter((sale) => sale.area === "bar");
   const openDrugstoreCash = state.cashSessions.find((cash) => cash.area === "drugstore" && cash.status === "abierta");
   const openBarCash = state.cashSessions.find((cash) => cash.area === "bar" && cash.status === "abierta");
+  const currentDrugstoreSales = openDrugstoreCash ? drugstoreSales.filter((sale) => sale.cashSessionId === openDrugstoreCash.id) : [];
+  const currentBarSales = openBarCash ? barSales.filter((sale) => sale.cashSessionId === openBarCash.id) : [];
   const selectedDaySales = state.sales.filter((sale) => dateKey(new Date(sale.createdAt)) === reportDate);
   const selectedDayDrugstoreSales = selectedDaySales.filter((sale) => sale.area === "drugstore");
   const selectedDayBarSales = selectedDaySales.filter((sale) => sale.area === "bar");
@@ -738,8 +740,8 @@ export default function Home() {
               <Panel title="Mas vendidos"><TopItems sales={state.sales} /></Panel>
             </div>
             <div className={styles.reportsBillingGrid}>
-              <SalesTable title="Facturacion Drugstore" sales={drugstoreSales} settings={state.settings} />
-              <SalesTable title="Facturacion Bar" sales={barSales} settings={state.settings} />
+              <SalesTable title="Tickets caja actual - Drugstore" sales={currentDrugstoreSales} settings={state.settings} />
+              <SalesTable title="Tickets caja actual - Bar" sales={currentBarSales} settings={state.settings} />
             </div>
             <CashHistory cashSessions={state.cashSessions} sales={state.sales} settings={state.settings} />
           </>
@@ -821,8 +823,26 @@ function CashCloseModal({ cashSession, sales, onCancel, onClose }: { cashSession
 }
 
 function CashHistory({ cashSessions, sales, settings }: { cashSessions: CashSession[]; sales: Sale[]; settings: AppState["settings"] }) {
+  const [closeDate, setCloseDate] = useState("");
+  const [selectedCashId, setSelectedCashId] = useState("");
+  const [page, setPage] = useState(1);
   const closed = cashSessions.filter((cash) => cash.status === "cerrada").sort((a, b) => new Date(b.closedAt ?? 0).getTime() - new Date(a.closedAt ?? 0).getTime());
-  return <Panel title="Historial de cierres"><div className={styles.tableWrap}><table><thead><tr><th>Area</th><th>Responsable</th><th>Apertura</th><th>Cierre</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th /></tr></thead><tbody>{closed.map((cash) => <tr key={cash.id}><td>{labelArea(cash.area)}</td><td>{cash.closedBy ?? cash.openedBy}</td><td>{date(cash.openedAt)}</td><td>{cash.closedAt ? date(cash.closedAt) : "-"}</td><td>{money(cash.expectedAmount ?? 0)}</td><td>{money(cash.countedAmount ?? 0)}</td><td className={(cash.difference ?? 0) < 0 ? styles.low : ""}>{money(cash.difference ?? 0)}</td><td><button className={styles.smallButton} onClick={() => printCashClose(settings, cash, sales)}>Reimprimir</button></td></tr>)}</tbody></table></div><ListEmpty show={!closed.length} text="Todavia no hay cierres de caja." /></Panel>;
+  const filtered = closeDate ? closed.filter((cash) => cash.closedAt && dateKey(new Date(cash.closedAt)) === closeDate) : closed;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / 20));
+  const currentPage = Math.min(page, totalPages);
+  const visibleCashSessions = filtered.slice((currentPage - 1) * 20, currentPage * 20);
+  const selectedCash = closed.find((cash) => cash.id === selectedCashId);
+  const archivedSales = selectedCash ? sales.filter((sale) => sale.cashSessionId === selectedCash.id) : [];
+
+  return <section className={styles.cashHistorySection}>
+    <div className={styles.cashHistoryHeader}><div><span>Archivo de cajas</span><h2>Cierres anteriores</h2></div><div className={styles.cashDateFilter}><label>Fecha de cierre<input type="date" value={closeDate} max={dateKey(new Date())} onChange={(event) => { setCloseDate(event.target.value); setPage(1); }} /></label>{closeDate && <button className={styles.smallButton} onClick={() => { setCloseDate(""); setPage(1); }}>Ver todas</button>}</div></div>
+    <Panel title={`Historial de cierres (${filtered.length})`}>
+      <div className={styles.tableWrap}><table><thead><tr><th>Area</th><th>Responsable</th><th>Apertura</th><th>Cierre</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th /></tr></thead><tbody>{visibleCashSessions.map((cash) => <tr key={cash.id}><td>{labelArea(cash.area)}</td><td>{cash.closedBy ?? cash.openedBy}</td><td>{date(cash.openedAt)}</td><td>{cash.closedAt ? date(cash.closedAt) : "-"}</td><td>{money(cash.expectedAmount ?? 0)}</td><td>{money(cash.countedAmount ?? 0)}</td><td className={(cash.difference ?? 0) < 0 ? styles.low : ""}>{money(cash.difference ?? 0)}</td><td><div className={styles.rowActions}><button className={styles.smallButton} onClick={() => setSelectedCashId(cash.id)}>Ver tickets</button><button className={styles.smallButton} onClick={() => printCashClose(settings, cash, sales)}>Reimprimir cierre</button></div></td></tr>)}</tbody></table></div>
+      <ListEmpty show={!filtered.length} text={closed.length ? "No hay cierres en esa fecha." : "Todavia no hay cierres de caja."} />
+      {totalPages > 1 && <div className={styles.pagination}><button className={styles.smallButton} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><strong>Pagina {currentPage} de {totalPages}</strong><button className={styles.smallButton} disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></div>}
+    </Panel>
+    {selectedCash && <div className={styles.archivedTickets}><div className={styles.archiveTitle}><div><span>Caja archivada</span><h2>{labelArea(selectedCash.area)} - {selectedCash.closedAt ? date(selectedCash.closedAt) : ""}</h2></div><button className={styles.smallButton} onClick={() => setSelectedCashId("")}>Cerrar detalle</button></div><SalesTable title="Tickets de este cierre" sales={archivedSales} settings={settings} /></div>}
+  </section>;
 }
 
 function SegmentedControl({ options, value, onChange, tone }: { options: [string, string][]; value: string; onChange: (value: string) => void; tone?: "drugstore" | "bar" }) {
