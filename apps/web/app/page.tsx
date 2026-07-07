@@ -582,6 +582,16 @@ export default function Home() {
                 <small>{openTables.length} mesas con pedido</small>
               </button>
             </div>
+            <section className={styles.updateBoard}>
+              <div className={styles.updateBoardHeader}><span>Actualizaciones</span><h2>Ultimos cambios del sistema</h2></div>
+              <ul>
+                <li>Se corrigio el orden de las mesas y ya no pueden quedar repetidas.</li>
+                <li>Se alejo y protegio el boton para eliminar una mesa.</li>
+                <li>Se agrego acceso a Stock y Menu sin necesidad de abrir caja.</li>
+                <li>Se agrego apertura, cierre e historial de cajas.</li>
+                <li>Se mejoro la lectura y administracion de codigos de barras.</li>
+              </ul>
+            </section>
           </>
         )}
 
