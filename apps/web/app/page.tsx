@@ -449,8 +449,12 @@ export default function Home() {
   function deleteTable(tableId: string) {
     const table = state.tables.find((entry) => entry.id === tableId);
     if (!table) return;
-    if (table.items.length && !window.confirm(`La ${table.name} tiene un pedido. Queres eliminarla igualmente?`)) return;
-    const remaining = state.tables.filter((entry) => entry.id !== tableId);
+    if (table.items.length) {
+      window.alert(`${table.name} tiene un pedido activo. Primero cobra o vacia el pedido.`);
+      return;
+    }
+    if (!window.confirm(`Seguro que queres eliminar ${table.name}? Esta accion no se puede deshacer.`)) return;
+    const remaining = normalizeTables(state.tables.filter((entry) => entry.id !== tableId));
     mutate({ ...state, tables: remaining });
     setSelectedTableId(remaining[0]?.id ?? "");
   }
@@ -676,13 +680,14 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
+                  {selectedTable && <div className={styles.tableDangerZone}><div><strong>Administrar {selectedTable.name}</strong><span>{selectedTable.items.length ? "No se puede eliminar mientras tenga un pedido." : "Esta accion requiere confirmacion."}</span></div><button className={styles.deleteTableButton} disabled={Boolean(selectedTable.items.length)} onClick={() => deleteTable(selectedTable.id)}>Eliminar mesa</button></div>}
                 </Panel>
                 <div className={styles.tableOrderColumn}>
                   <Panel title={`Agregar al pedido - ${selectedTable?.name ?? "mesa"}`}>
                     <input type="search" placeholder="Buscar en menu..." value={barSearch} onChange={(event) => setBarSearch(event.target.value)} />
                     <ProductGrid products={filteredMenu} onPick={(id) => addLine(id, "table")} compact hideCategory />
                   </Panel>
-                  <Panel title={`Ticket - ${selectedTable?.name ?? "mesa"}`} action={<div className={styles.rowActions}><button className={styles.smallButton} onClick={() => selectedTable && deleteTable(selectedTable.id)}>Eliminar mesa</button><button className={styles.primaryCompact} onClick={closeTable}>Cobrar mesa</button></div>} sticky>
+                  <Panel title={`Ticket - ${selectedTable?.name ?? "mesa"}`} action={<button className={styles.primaryCompact} onClick={closeTable}>Cobrar mesa</button>} sticky>
                     <div className={styles.statusActions}>
                       <button disabled={Boolean(selectedTable?.items.length)} className={`${styles.emptyStatusButton} ${selectedTable?.status === "vacio" ? styles.statusActive : ""}`} onClick={() => selectedTable && setTableStatus(selectedTable.id, "vacio")}>Vacio</button>
                       <button disabled={!selectedTable?.items.length} className={`${styles.preparingStatusButton} ${selectedTable?.status === "preparacion" ? styles.statusActive : ""}`} onClick={() => selectedTable && setTableStatus(selectedTable.id, "preparacion")}>En preparacion</button>
@@ -1152,6 +1157,14 @@ function compareTables(a: TableOrder, b: TableOrder) {
   return numberA - numberB || a.name.localeCompare(b.name, "es");
 }
 
+function normalizeTables(tables: TableOrder[]) {
+  return tables.slice().sort(compareTables).map((table, index) => ({
+    ...table,
+    name: `Mesa ${index + 1}`,
+    status: table.items.length ? (table.status === "entregado" ? "entregado" as const : "preparacion" as const) : "vacio" as const,
+  }));
+}
+
 function normalizeState(state: AppState): AppState {
   return {
     ...state,
@@ -1165,7 +1178,7 @@ function normalizeState(state: AppState): AppState {
         : { ...product, barcodes };
     }),
     sales: state.sales.map((sale, index) => ({ ...sale, cashSessionId: sale.cashSessionId ?? "", ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
-    tables: state.tables.map((table) => ({ ...table, status: table.items.length ? (table.status === "entregado" ? "entregado" : "preparacion") : "vacio" })),
+    tables: normalizeTables(state.tables),
     cashSessions: (state.cashSessions ?? []).map((cash) => ({ ...cash, openedBy: cash.openedBy ?? "Usuario", movements: cash.movements ?? [] })),
   };
 }
@@ -1201,11 +1214,22 @@ async function loadRemoteState(): Promise<AppState> {
     if (settingsError) throw settingsError;
   }
 
+
+  const rawTables = (tablesResult.data ?? []).map((row) => row.payload as TableOrder);
+  const normalizedTables = normalizeTables(rawTables);
+  const rawTablesById = new Map(rawTables.map((table) => [table.id, table]));
+  const correctedTables = normalizedTables.filter((table) => JSON.stringify(rawTablesById.get(table.id)) !== JSON.stringify(table));
+  if (correctedTables.length) {
+    const updatedAt = new Date().toISOString();
+    const { error: correctionError } = await supabase.from("bar_tables").upsert(correctedTables.map((table) => ({ id: table.id, payload: table, updated_at: updatedAt })));
+    if (correctionError) throw correctionError;
+  }
+
   return normalizeState({
     settings,
     products: (productsResult.data ?? []).map((row) => row.payload as Product),
     sales: (salesResult.data ?? []).map((row) => row.payload as Sale),
-    tables: (tablesResult.data ?? []).map((row) => row.payload as TableOrder).sort(compareTables),
+    tables: normalizedTables,
     cashSessions: (cashResult.data ?? []).map((row) => row.payload as CashSession),
   });
 }

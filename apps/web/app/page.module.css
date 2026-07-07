@@ -1301,6 +1301,43 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.tableDangerZone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+  border-top: 1px solid #e1c6b7;
+  padding-top: 16px;
+}
+
+.tableDangerZone strong,
+.tableDangerZone span {
+  display: block;
+}
+
+.tableDangerZone span {
+  margin-top: 3px;
+  color: #856a55;
+  font-size: 12px;
+}
+
+.deleteTableButton {
+  min-height: 38px;
+  border: 1px solid #a33c2b;
+  border-radius: 8px;
+  background: #fff0ec;
+  color: #8a2f20;
+  padding: 8px 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.deleteTableButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .tableOrderColumn {
   display: grid;
   gap: 24px;
@@ -1689,6 +1726,11 @@
 
   .tablesWorkspace .tableGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tableDangerZone {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .tableOrderColumn .panelHeader {
