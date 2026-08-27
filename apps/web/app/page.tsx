@@ -419,9 +419,23 @@ export default function Home() {
   }
 
   async function closeCash(cashSession: CashSession, countedAmount: number) {
-    const expectedAmount = cashExpected(cashSession, state.sales);
+    let latestState = state;
+    try {
+      latestState = await loadRemoteState();
+    } catch {
+      window.alert("No se pudo actualizar la caja antes del cierre. Revisa la conexion e intenta nuevamente.");
+      return;
+    }
+    const latestCashSession = latestState.cashSessions.find((cash) => cash.id === cashSession.id);
+    if (!latestCashSession || latestCashSession.status !== "abierta") {
+      window.alert("Esta caja ya no esta abierta. Se actualizaron los datos.");
+      setState(latestState);
+      setClosingCash(null);
+      return;
+    }
+    const expectedAmount = cashExpected(latestCashSession, latestState.sales);
     const closed: CashSession = {
-      ...cashSession,
+      ...latestCashSession,
       status: "cerrada",
       closedAt: new Date().toISOString(),
       closedBy: session?.user.email ?? "Usuario",
@@ -434,9 +448,9 @@ export default function Home() {
       window.alert("No se pudo cerrar la caja. Intenta nuevamente.");
       return;
     }
-    setState((current) => ({ ...current, cashSessions: current.cashSessions.map((cash) => cash.id === closed.id ? closed : cash) }));
+    setState({ ...latestState, cashSessions: latestState.cashSessions.map((cash) => cash.id === closed.id ? closed : cash) });
     setClosingCash(null);
-    printCashClose(state.settings, closed, state.sales);
+    printCashClose(latestState.settings, closed, latestState.sales);
   }
 
   function setTableStatus(tableId: string, status: TableStatus) {
@@ -588,7 +602,7 @@ export default function Home() {
                 <li>Se corrigio el orden de las mesas y ya no pueden quedar repetidas.</li>
                 <li>Se alejo y protegio el boton para eliminar una mesa.</li>
                 <li>Se agrego acceso a Stock y Menu sin necesidad de abrir caja.</li>
-                <li>Se agrego apertura, cierre e historial de cajas.</li>
+                <li>Se ajusto el cierre de caja para tomar datos actualizados del servidor.</li>
                 <li>Se mejoro la lectura y administracion de codigos de barras.</li>
               </ul>
             </section>
@@ -820,7 +834,7 @@ function CashOpen({ area, onOpen, onManage }: { area: Area; onOpen: (amount: num
 
 function CashBar({ cashSession, sales, onMovement, onClose }: { cashSession: CashSession; sales: Sale[]; onMovement: () => void; onClose: () => void }) {
   const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
-  return <section className={styles.cashBar}><div><span>Caja abierta</span><strong>{labelArea(cashSession.area)}</strong><small>Desde {date(cashSession.openedAt)} - {cashSession.openedBy}</small></div><div className={styles.cashBarMetrics}><div><span>Ventas</span><strong>{money(sessionSales.reduce((sum, sale) => sum + sale.total, 0))}</strong></div><div><span>Efectivo esperado</span><strong>{money(cashExpected(cashSession, sales))}</strong></div></div><div className={styles.cashBarActions}><button className={styles.smallButton} onClick={onMovement}>Registrar movimiento</button><button className={styles.closeCashButton} onClick={onClose}>Cerrar caja</button></div></section>;
+  return <section className={styles.cashBar}><div><span>Caja abierta</span><strong>{labelArea(cashSession.area)}</strong><small>Desde {date(cashSession.openedAt)} - {cashSession.openedBy}</small></div><div className={styles.cashBarMetrics}><div><span>Total vendido</span><strong>{money(sessionSales.reduce((sum, sale) => sum + sale.total, 0))}</strong></div><div><span>Solo efectivo esperado</span><strong>{money(cashExpected(cashSession, sales))}</strong></div></div><div className={styles.cashBarActions}><button className={styles.smallButton} onClick={onMovement}>Registrar movimiento</button><button className={styles.closeCashButton} onClick={onClose}>Cerrar caja</button></div></section>;
 }
 
 function CashMovementModal({ cashSession, onCancel, onSave }: { cashSession: CashSession; onCancel: () => void; onSave: (movement: Omit<CashMovement, "id" | "createdAt">) => void }) {
@@ -836,7 +850,7 @@ function CashCloseModal({ cashSession, sales, onCancel, onClose }: { cashSession
   const expected = cashExpected(cashSession, sales);
   const difference = counted === "" ? null : Number(counted) - expected;
   const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
-  return <div className={styles.modalBackdrop}><form className={`${styles.modal} ${styles.cashCloseModal}`} onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onClose(Number(counted)); setLoading(false); }}><h2>Cerrar caja de {labelArea(cashSession.area)}</h2><div className={styles.cashCloseSummary}><Total label="Efectivo inicial" value={cashSession.openingAmount} /><Total label="Ventas en efectivo" value={paymentTotal(sessionSales, "Efectivo")} /><Total label="Transferencias" value={paymentTotal(sessionSales, "Transferencia")} /><Total label="Tarjetas" value={paymentTotal(sessionSales, "Tarjeta")} /><Total label="Ingresos" value={movementTotal(cashSession, "ingreso")} /><Total label="Gastos" value={movementTotal(cashSession, "gasto")} /><Total label="Retiros" value={movementTotal(cashSession, "retiro")} /><div className={styles.expectedCash}><span>Efectivo esperado</span><strong>{money(expected)}</strong></div></div><label>Efectivo contado<input autoFocus required type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} /></label>{difference !== null && <div className={`${styles.cashDifference} ${difference === 0 ? styles.exactCash : difference < 0 ? styles.missingCash : styles.extraCash}`}><span>Diferencia</span><strong>{money(difference)}</strong></div>}<div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.closeCashButton} disabled={loading}>{loading ? "Cerrando..." : "Confirmar cierre"}</button></div></form></div>;
+  return <div className={styles.modalBackdrop}><form className={`${styles.modal} ${styles.cashCloseModal}`} onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onClose(Number(counted)); setLoading(false); }}><h2>Cerrar caja de {labelArea(cashSession.area)}</h2><div className={styles.cashCloseSummary}><Total label="Total vendido" value={sessionSales.reduce((sum, sale) => sum + sale.total, 0)} /><Total label="Efectivo inicial" value={cashSession.openingAmount} /><Total label="Ventas en efectivo" value={paymentTotal(sessionSales, "Efectivo")} /><Total label="Transferencias" value={paymentTotal(sessionSales, "Transferencia")} /><Total label="Tarjetas" value={paymentTotal(sessionSales, "Tarjeta")} /><Total label="Cuenta corriente" value={paymentTotal(sessionSales, "Cuenta corriente")} /><Total label="Ingresos" value={movementTotal(cashSession, "ingreso")} /><Total label="Gastos" value={movementTotal(cashSession, "gasto")} /><Total label="Retiros" value={movementTotal(cashSession, "retiro")} /><div className={styles.expectedCash}><span>Efectivo esperado en caja</span><strong>{money(expected)}</strong></div></div><label>Efectivo contado<input autoFocus required type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} /></label>{difference !== null && <div className={`${styles.cashDifference} ${difference === 0 ? styles.exactCash : difference < 0 ? styles.missingCash : styles.extraCash}`}><span>Diferencia</span><strong>{money(difference)}</strong></div>}<div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.closeCashButton} disabled={loading}>{loading ? "Cerrando..." : "Confirmar cierre"}</button></div></form></div>;
 }
 
 function CashHistory({ cashSessions, sales, settings }: { cashSessions: CashSession[]; sales: Sale[]; settings: AppState["settings"] }) {
@@ -1296,9 +1310,10 @@ function printCashClose(settings: AppState["settings"], cashSession: CashSession
   const old = document.getElementById("printTicket");
   old?.remove();
   const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
+  const totalSold = sessionSales.reduce((sum, sale) => sum + sale.total, 0);
   const ticket = document.createElement("section");
   ticket.id = "printTicket";
-  ticket.innerHTML = `<header><h2>${settings.businessName}</h2><p>CIERRE DE CAJA</p><p>${labelArea(cashSession.area)}</p></header><hr><div class="ticketMeta"><p>Apertura: ${date(cashSession.openedAt)}</p><p>Cierre: ${cashSession.closedAt ? date(cashSession.closedAt) : "Caja abierta"}</p><p>Operaciones: ${sessionSales.length}</p></div><hr><div class="ticketItems"><div class="ticketItem"><div><span>Efectivo inicial</span><strong>${money(cashSession.openingAmount)}</strong></div></div><div class="ticketItem"><div><span>Ventas efectivo</span><strong>${money(paymentTotal(sessionSales, "Efectivo"))}</strong></div></div><div class="ticketItem"><div><span>Transferencias</span><strong>${money(paymentTotal(sessionSales, "Transferencia"))}</strong></div></div><div class="ticketItem"><div><span>Tarjetas</span><strong>${money(paymentTotal(sessionSales, "Tarjeta"))}</strong></div></div><div class="ticketItem"><div><span>Ingresos</span><strong>${money(movementTotal(cashSession, "ingreso"))}</strong></div></div><div class="ticketItem"><div><span>Gastos</span><strong>-${money(movementTotal(cashSession, "gasto"))}</strong></div></div><div class="ticketItem"><div><span>Retiros</span><strong>-${money(movementTotal(cashSession, "retiro"))}</strong></div></div></div><hr><div class="ticketTotal"><span>ESPERADO</span><strong>${money(cashSession.expectedAmount ?? cashExpected(cashSession, sales))}</strong></div><div class="ticketTotal"><span>CONTADO</span><strong>${money(cashSession.countedAmount ?? 0)}</strong></div><div class="ticketTotal"><span>DIFERENCIA</span><strong>${money(cashSession.difference ?? 0)}</strong></div><footer>Cierre guardado en el sistema</footer>`;
+  ticket.innerHTML = `<header><h2>${settings.businessName}</h2><p>CIERRE DE CAJA</p><p>${labelArea(cashSession.area)}</p></header><hr><div class="ticketMeta"><p>Apertura: ${date(cashSession.openedAt)}</p><p>Cierre: ${cashSession.closedAt ? date(cashSession.closedAt) : "Caja abierta"}</p><p>Operaciones: ${sessionSales.length}</p></div><hr><div class="ticketItems"><div class="ticketItem"><div><span>Total vendido</span><strong>${money(totalSold)}</strong></div></div><div class="ticketItem"><div><span>Efectivo inicial</span><strong>${money(cashSession.openingAmount)}</strong></div></div><div class="ticketItem"><div><span>Ventas efectivo</span><strong>${money(paymentTotal(sessionSales, "Efectivo"))}</strong></div></div><div class="ticketItem"><div><span>Transferencias</span><strong>${money(paymentTotal(sessionSales, "Transferencia"))}</strong></div></div><div class="ticketItem"><div><span>Tarjetas</span><strong>${money(paymentTotal(sessionSales, "Tarjeta"))}</strong></div></div><div class="ticketItem"><div><span>Cuenta corriente</span><strong>${money(paymentTotal(sessionSales, "Cuenta corriente"))}</strong></div></div><div class="ticketItem"><div><span>Ingresos</span><strong>${money(movementTotal(cashSession, "ingreso"))}</strong></div></div><div class="ticketItem"><div><span>Gastos</span><strong>-${money(movementTotal(cashSession, "gasto"))}</strong></div></div><div class="ticketItem"><div><span>Retiros</span><strong>-${money(movementTotal(cashSession, "retiro"))}</strong></div></div></div><hr><div class="ticketTotal"><span>EFECTIVO ESPERADO</span><strong>${money(cashSession.expectedAmount ?? cashExpected(cashSession, sales))}</strong></div><div class="ticketTotal"><span>CONTADO</span><strong>${money(cashSession.countedAmount ?? 0)}</strong></div><div class="ticketTotal"><span>DIFERENCIA</span><strong>${money(cashSession.difference ?? 0)}</strong></div><footer>Cierre guardado en el sistema</footer>`;
   document.body.appendChild(ticket);
   window.requestAnimationFrame(() => window.print());
 }
