@@ -5,8 +5,8 @@ body {
 }
 
 body {
-  color: #2b1a10;
-  background: #f7f0e6;
+  color: #241711;
+  background: #f2f1ec;
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
@@ -34,17 +34,17 @@ button {
 input,
 select {
   width: 100%;
-  border: 1px solid #e6d3bd;
+  border: 1px solid #ded1bf;
   border-radius: 8px;
   padding: 10px 11px;
-  background: #fffaf2;
-  color: #2b1a10;
+  background: #fffdf9;
+  color: #241711;
 }
 
 label {
   display: grid;
   gap: 6px;
-  color: #856a55;
+  color: #715b49;
   font-size: 13px;
 }
 
