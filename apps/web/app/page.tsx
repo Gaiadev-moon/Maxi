@@ -160,6 +160,7 @@ export default function Home() {
   const [closingCash, setClosingCash] = useState<CashSession | null>(null);
   const [movementCash, setMovementCash] = useState<CashSession | null>(null);
   const [cashOpeningAnimation, setCashOpeningAnimation] = useState(false);
+  const [cashClosingAnimation, setCashClosingAnimation] = useState(false);
   const [, setClockTick] = useState(0);
   const saleInProgressRef = useRef(false);
 
@@ -451,9 +452,11 @@ export default function Home() {
       window.alert("No se pudo cerrar la caja. Intenta nuevamente.");
       return;
     }
+    setCashClosingAnimation(true);
     setState({ ...latestState, cashSessions: latestState.cashSessions.map((cash) => cash.id === closed.id ? closed : cash) });
     setClosingCash(null);
     printCashClose(latestState.settings, closed, latestState.sales);
+    window.setTimeout(() => setCashClosingAnimation(false), 2600);
   }
 
   function setTableStatus(tableId: string, status: TableStatus) {
@@ -559,6 +562,7 @@ export default function Home() {
   if (authLoading) return <SystemMessage title="Iniciando" text="Conectando con el sistema..." />;
   if (!session) return <LoginScreen />;
   if (dataLoading) return <SystemMessage title="Cargando datos" text="Preparando productos, mesas y ventas..." />;
+  if (cashClosingAnimation) return <CashClosingSplash />;
   if (cashOpeningAnimation) return <CashOpeningSplash />;
   if (!openCashSession) return <ShiftStartScreen onOpen={(amount) => openCash("drugstore", amount)} />;
 
@@ -1053,6 +1057,17 @@ function CashOpeningSplash() {
         <Image className={styles.openingLogo} src="/al-toque-logo.png" alt="Al toque" width={178} height={178} priority />
       </div>
       <span>Iniciando caja</span>
+    </main>
+  );
+}
+
+function CashClosingSplash() {
+  return (
+    <main className={`${styles.cashOpeningSplash} ${styles.cashClosingSplash}`}>
+      <div className={styles.closingLogoRing}>
+        <Image className={styles.openingLogo} src="/al-toque-logo.png" alt="Al toque" width={178} height={178} priority />
+      </div>
+      <span>Caja cerrada</span>
     </main>
   );
 }

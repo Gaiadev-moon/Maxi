@@ -175,6 +175,16 @@
   animation: openingPulse 2.45s ease-in-out both;
 }
 
+.closingLogoRing {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fff6df, #c9944f);
+  padding: 8px;
+  box-shadow: 0 14px 40px rgba(75, 36, 16, 0.28);
+  animation: closingPulse 2.45s ease-in-out both;
+}
+
 .openingLogo {
   animation: openingLogoPop 2.45s ease-in-out both;
 }
@@ -182,6 +192,16 @@
 .cashOpeningSplash span {
   color: #ffe5b1;
   animation: openingText 2.45s ease-in-out both;
+}
+
+.cashClosingSplash {
+  background:
+    radial-gradient(circle at center, rgba(255, 227, 177, 0.2), transparent 36%),
+    linear-gradient(135deg, #17100d 0%, #322018 48%, #0f0a08 100%);
+}
+
+.cashClosingSplash span {
+  color: #ffd58b;
 }
 
 @keyframes openingPulse {
@@ -196,6 +216,21 @@
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 46px rgba(232, 194, 135, 0);
+  }
+}
+
+@keyframes closingPulse {
+  0% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 34px rgba(232, 194, 135, 0.2);
+  }
+  48% {
+    transform: scale(0.98);
+    box-shadow: 0 0 0 14px rgba(232, 194, 135, 0.12);
+  }
+  100% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgba(232, 194, 135, 0);
   }
 }
 
