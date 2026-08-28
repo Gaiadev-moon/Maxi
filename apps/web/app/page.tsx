@@ -159,6 +159,7 @@ export default function Home() {
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [closingCash, setClosingCash] = useState<CashSession | null>(null);
   const [movementCash, setMovementCash] = useState<CashSession | null>(null);
+  const [cashOpeningAnimation, setCashOpeningAnimation] = useState(false);
   const [, setClockTick] = useState(0);
   const saleInProgressRef = useRef(false);
 
@@ -232,7 +233,7 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const openCashSession = state.cashSessions.find((cash) => cash.status === "abierta");
+  const openCashSession = currentOpenCashSession(state.cashSessions);
   const currentSales = openCashSession ? state.sales.filter((sale) => sale.cashSessionId === openCashSession.id) : [];
   const currentDrugstoreSales = currentSales.filter((sale) => sale.area === "drugstore");
   const currentBarSales = currentSales.filter((sale) => sale.area === "bar");
@@ -387,7 +388,7 @@ export default function Home() {
   }
 
   async function openCash(_area: Area, openingAmount: number) {
-    if (state.cashSessions.some((cash) => cash.status === "abierta")) {
+    if (currentOpenCashSession(state.cashSessions)) {
       window.alert("Ya hay una caja abierta.");
       return;
     }
@@ -405,7 +406,10 @@ export default function Home() {
       window.alert("No se pudo abrir la caja. Puede que ya exista otra caja abierta.");
       return;
     }
+    setCashOpeningAnimation(true);
     setState((current) => ({ ...current, cashSessions: [...current.cashSessions, cashSession] }));
+    setView("dashboard");
+    window.setTimeout(() => setCashOpeningAnimation(false), 2600);
   }
 
   function addCashMovement(cashSession: CashSession, movement: Omit<CashMovement, "id" | "createdAt">) {
@@ -555,6 +559,8 @@ export default function Home() {
   if (authLoading) return <SystemMessage title="Iniciando" text="Conectando con el sistema..." />;
   if (!session) return <LoginScreen />;
   if (dataLoading) return <SystemMessage title="Cargando datos" text="Preparando productos, mesas y ventas..." />;
+  if (cashOpeningAnimation) return <CashOpeningSplash />;
+  if (!openCashSession) return <ShiftStartScreen onOpen={(amount) => openCash("drugstore", amount)} />;
 
   return (
     <div className={styles.shell}>
@@ -1017,6 +1023,40 @@ function SystemMessage({ title, text }: { title: string; text: string }) {
   return <main className={styles.accessPage}><section className={styles.systemMessage}><Image className={styles.accessLogo} src="/al-toque-logo.png" alt="Al toque" width={88} height={88} priority /><h1>{title}</h1><p>{text}</p></section></main>;
 }
 
+function ShiftStartScreen({ onOpen }: { onOpen: (amount: number) => void | Promise<void> }) {
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  return (
+    <main className={styles.shiftStartPage}>
+      <section className={styles.shiftStartCard}>
+        <div className={styles.shiftLogoFrame}>
+          <Image className={styles.shiftLogo} src="/al-toque-logo.png" alt="Al toque" width={160} height={160} priority />
+        </div>
+        <div className={styles.shiftStartCopy}>
+          <span>Caja cerrada</span>
+          <h1>Al toque</h1>
+          <p>Abri la caja para iniciar ventas, mesas y cierre del turno.</p>
+        </div>
+        <form className={styles.shiftStartForm} onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onOpen(Number(amount || 0)); setLoading(false); }}>
+          <label>Efectivo inicial<input autoFocus type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="$ 0" /></label>
+          <button className={styles.shiftOpenButton} disabled={loading}>{loading ? "Abriendo caja..." : "Abrir caja"}</button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function CashOpeningSplash() {
+  return (
+    <main className={styles.cashOpeningSplash}>
+      <div className={styles.openingLogoRing}>
+        <Image className={styles.openingLogo} src="/al-toque-logo.png" alt="Al toque" width={178} height={178} priority />
+      </div>
+      <span>Iniciando caja</span>
+    </main>
+  );
+}
+
 function CashOpen({ area, onOpen, onManage }: { area: Area; onOpen: (amount: number) => void | Promise<void>; onManage?: () => void }) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1410,6 +1450,13 @@ function salesTotal(sales: Sale[]) {
 
 function paymentTotal(sales: Sale[], payment: string) {
   return sales.filter((sale) => sale.payment === payment).reduce((sum, sale) => sum + sale.total, 0);
+}
+
+function currentOpenCashSession(cashSessions: CashSession[]) {
+  const latestSession = cashSessions
+    .slice()
+    .sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime())[0];
+  return latestSession?.status === "abierta" ? latestSession : undefined;
 }
 
 function itemArea(item: LineItem, products: Product[]) {

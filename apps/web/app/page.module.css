@@ -56,6 +56,176 @@
   color: #715b49;
 }
 
+.shiftStartPage,
+.cashOpeningSplash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(229, 178, 103, 0.32), transparent 34%),
+    linear-gradient(135deg, #25140f 0%, #3b2118 48%, #120b08 100%);
+  color: #fff7e8;
+}
+
+.shiftStartCard {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 22px;
+  justify-items: center;
+  border: 1px solid rgba(232, 194, 135, 0.45);
+  border-radius: 8px;
+  background: rgba(255, 248, 238, 0.96);
+  color: #22150f;
+  padding: 34px;
+  text-align: center;
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.36);
+}
+
+.shiftLogoFrame,
+.openingLogoRing {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fff8ea, #d7ad6f);
+  padding: 8px;
+  box-shadow: 0 14px 40px rgba(75, 36, 16, 0.28);
+}
+
+.shiftLogo,
+.openingLogo {
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff7e5;
+}
+
+.shiftStartCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.shiftStartCopy span,
+.cashOpeningSplash span {
+  color: #a66a2d;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.shiftStartCopy h1 {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.shiftStartCopy p {
+  max-width: 340px;
+  color: #6f5844;
+  font-weight: 800;
+}
+
+.shiftStartForm {
+  width: min(360px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.shiftStartForm label {
+  display: grid;
+  gap: 8px;
+  color: #4c382a;
+  font-weight: 950;
+  text-align: left;
+}
+
+.shiftStartForm input {
+  min-height: 54px;
+  border: 1px solid #dcc3a2;
+  border-radius: 8px;
+  background: #fffdfa;
+  color: #241711;
+  padding: 0 16px;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.shiftOpenButton {
+  min-height: 64px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #13823f, #20a85b);
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 950;
+  box-shadow: 0 18px 34px rgba(17, 123, 59, 0.32);
+  cursor: pointer;
+}
+
+.shiftOpenButton:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.cashOpeningSplash {
+  gap: 20px;
+  align-content: center;
+}
+
+.openingLogoRing {
+  animation: openingPulse 2.45s ease-in-out both;
+}
+
+.openingLogo {
+  animation: openingLogoPop 2.45s ease-in-out both;
+}
+
+.cashOpeningSplash span {
+  color: #ffe5b1;
+  animation: openingText 2.45s ease-in-out both;
+}
+
+@keyframes openingPulse {
+  0% {
+    transform: scale(0.82);
+    box-shadow: 0 0 0 0 rgba(232, 194, 135, 0.08);
+  }
+  45% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 28px rgba(232, 194, 135, 0.16);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 46px rgba(232, 194, 135, 0);
+  }
+}
+
+@keyframes openingLogoPop {
+  0% {
+    opacity: 0;
+    transform: rotate(-6deg) scale(0.9);
+  }
+  40% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes openingText {
+  0%,
+  24% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .formError,
 .syncError {
   border: 1px solid #c98e7d;
@@ -3258,6 +3428,19 @@
 
   .cashOpen {
     padding: 18px;
+  }
+
+  .shiftStartCard {
+    padding: 26px 18px;
+  }
+
+  .shiftLogoFrame .shiftLogo {
+    width: 126px;
+    height: 126px;
+  }
+
+  .shiftStartCopy h1 {
+    font-size: 36px;
   }
 
   .cashHistoryHeader,
