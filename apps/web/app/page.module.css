@@ -275,6 +275,50 @@
   margin-bottom: 18px;
 }
 
+.cashNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  border: 1px solid #ecc47d;
+  border-left: 7px solid #e19b25;
+  border-radius: 8px;
+  background: #fff4dc;
+  color: #5f3d08;
+  padding: 13px 16px;
+  box-shadow: 0 10px 24px rgba(125, 82, 14, 0.12);
+}
+
+.cashNotice strong,
+.cashNotice span {
+  display: block;
+}
+
+.cashNotice strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.cashNotice span {
+  color: #765016;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.cashNoticeDanger {
+  border-color: #dc8a78;
+  border-left-color: #d14125;
+  background: #ffe7df;
+  color: #7d2415;
+  box-shadow: 0 12px 28px rgba(174, 56, 31, 0.16);
+}
+
+.cashNoticeDanger span {
+  color: #8f321f;
+}
+
 
 .brand {
   display: flex;
@@ -1678,6 +1722,23 @@
   background: #fff8f0;
   padding: 14px 16px;
   box-shadow: 0 10px 24px rgba(43, 26, 16, 0.08);
+}
+
+.cashBarWarning,
+.cashCloseWarning {
+  grid-column: 1 / -1;
+  border: 1px solid #efc783;
+  border-left: 6px solid #dc8c1f;
+  border-radius: 8px;
+  background: #fff2d8;
+  color: #70480e;
+  padding: 11px 13px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.cashCloseWarning {
+  margin-bottom: 12px;
 }
 
 .cashBar > div:first-child strong,
@@ -3463,6 +3524,15 @@
 
   .cashOpen {
     padding: 18px;
+  }
+
+  .cashNotice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cashNotice span {
+    text-align: left;
   }
 
   .shiftStartCard {

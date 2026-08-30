@@ -79,6 +79,7 @@ type AppState = {
     businessAddress: string;
     businessPhone: string;
     ticketFooter: string;
+    operationalCloseHour: string;
   };
   products: Product[];
   sales: Sale[];
@@ -99,6 +100,7 @@ const seedState: AppState = {
     businessAddress: "",
     businessPhone: "",
     ticketFooter: "Gracias por su compra",
+    operationalCloseHour: "03:00",
   },
   products: [],
   sales: [],
@@ -152,7 +154,7 @@ export default function Home() {
   const [salePayment, setSalePayment] = useState("Efectivo");
   const [tablePayment, setTablePayment] = useState("Efectivo");
   const [tableStatusFilter, setTableStatusFilter] = useState<TableFilter>("todas");
-  const [reportDate, setReportDate] = useState(() => dateKey(new Date()));
+  const [reportDate, setReportDate] = useState(() => businessDateKey(new Date(), seedState.settings.operationalCloseHour));
   const [selectedTableId, setSelectedTableId] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
@@ -235,10 +237,11 @@ export default function Home() {
   }, []);
 
   const openCashSession = currentOpenCashSession(state.cashSessions);
-  const currentSales = openCashSession ? state.sales.filter((sale) => sale.cashSessionId === openCashSession.id) : [];
+  const currentBusinessDate = businessDateKey(new Date(), state.settings.operationalCloseHour);
+  const currentSales = openCashSession ? state.sales.filter((sale) => sale.cashSessionId === openCashSession.id && businessDateKey(new Date(sale.createdAt), state.settings.operationalCloseHour) === currentBusinessDate) : [];
   const currentDrugstoreSales = currentSales.filter((sale) => sale.area === "drugstore");
   const currentBarSales = currentSales.filter((sale) => sale.area === "bar");
-  const selectedDaySales = state.sales.filter((sale) => dateKey(new Date(sale.createdAt)) === reportDate);
+  const selectedDaySales = state.sales.filter((sale) => businessDateKey(new Date(sale.createdAt), state.settings.operationalCloseHour) === reportDate);
   const selectedDayDrugstoreSales = selectedDaySales.filter((sale) => sale.area === "drugstore");
   const selectedDayBarSales = selectedDaySales.filter((sale) => sale.area === "bar");
   const lowDrugstoreStock = state.products.filter((product) => product.area === "drugstore" && product.stock <= product.min);
@@ -250,6 +253,7 @@ export default function Home() {
   const saleCartSum = total(saleCart);
   const tableSum = total(selectedTable?.items ?? []);
   const [title, subtitle] = viewCopy[view];
+  const cashNotice = openCashSession ? cashSessionNotice(openCashSession, state.settings.operationalCloseHour) : null;
 
   function mutate(next: AppState) {
     const previous = state;
@@ -593,6 +597,7 @@ export default function Home() {
         </header>
 
         {syncError && <div className={styles.syncError}>{syncError}</div>}
+        {cashNotice && <div className={`${styles.cashNotice} ${cashNotice.tone === "danger" ? styles.cashNoticeDanger : ""}`}><strong>{cashNotice.title}</strong><span>{cashNotice.text}</span></div>}
 
         {view === "dashboard" && (
           <DashboardView
@@ -677,6 +682,7 @@ export default function Home() {
           <CashCenter
             openCashSession={openCashSession}
             sales={state.sales}
+            closeHour={state.settings.operationalCloseHour}
             onOpenCash={openCash}
             onMovement={setMovementCash}
             onClose={setClosingCash}
@@ -710,7 +716,7 @@ export default function Home() {
       {stockProduct && <StockModal product={stockProduct} onCancel={() => setStockProduct(null)} onSave={(quantity) => addStock(stockProduct.id, quantity)} />}
       {barcodeProduct && <BarcodeListModal product={barcodeProduct} onClose={() => setBarcodeProduct(null)} />}
       {movementCash && <CashMovementModal cashSession={movementCash} onCancel={() => setMovementCash(null)} onSave={(movement) => addCashMovement(movementCash, movement)} />}
-      {closingCash && <CashCloseModal cashSession={closingCash} sales={state.sales} onCancel={() => setClosingCash(null)} onClose={(countedAmount) => closeCash(closingCash, countedAmount)} />}
+      {closingCash && <CashCloseModal cashSession={closingCash} sales={state.sales} closeHour={state.settings.operationalCloseHour} onCancel={() => setClosingCash(null)} onClose={(countedAmount) => closeCash(closingCash, countedAmount)} />}
     </div>
   );
 }
@@ -982,7 +988,7 @@ function ItemsView({ itemsArea, setItemsArea, drugstoreProducts, barProducts, lo
   );
 }
 
-function CashCenter({ openCashSession, sales, onOpenCash, onMovement, onClose }: { openCashSession?: CashSession; sales: Sale[]; onOpenCash: (area: Area, amount: number) => void | Promise<void>; onMovement: (cash: CashSession) => void; onClose: (cash: CashSession) => void }) {
+function CashCenter({ openCashSession, sales, closeHour, onOpenCash, onMovement, onClose }: { openCashSession?: CashSession; sales: Sale[]; closeHour: string; onOpenCash: (area: Area, amount: number) => void | Promise<void>; onMovement: (cash: CashSession) => void; onClose: (cash: CashSession) => void }) {
   return (
     <div className={styles.unifiedPage}>
       <section className={styles.sectionHero}>
@@ -990,7 +996,7 @@ function CashCenter({ openCashSession, sales, onOpenCash, onMovement, onClose }:
         <div className={styles.sectionStats}><span>{openCashSession ? "Caja abierta" : "Caja cerrada"}</span></div>
       </section>
       <div className={styles.cashCenterGrid}>
-        <div>{openCashSession ? <CashBar cashSession={openCashSession} sales={sales} onMovement={() => onMovement(openCashSession)} onClose={() => onClose(openCashSession)} /> : <CashOpen area="drugstore" onOpen={(amount) => onOpenCash("drugstore", amount)} />}</div>
+        <div>{openCashSession ? <CashBar cashSession={openCashSession} sales={sales} closeHour={closeHour} onMovement={() => onMovement(openCashSession)} onClose={() => onClose(openCashSession)} /> : <CashOpen area="drugstore" onOpen={(amount) => onOpenCash("drugstore", amount)} />}</div>
       </div>
     </div>
   );
@@ -1078,9 +1084,10 @@ function CashOpen({ area, onOpen, onManage }: { area: Area; onOpen: (amount: num
   return <section className={styles.cashOpen}><div><span>Caja cerrada</span><h2>Abrir caja</h2><p>Ingresa el efectivo disponible al comenzar este turno.</p></div><form onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onOpen(Number(amount || 0)); setLoading(false); }}><label>Efectivo inicial<input autoFocus type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="$ 0" /></label><button className={styles.primaryButton} disabled={loading}>{loading ? "Abriendo..." : "Abrir caja"}</button>{onManage && <><div className={styles.cashOpenDivider}><span>o continuar sin vender</span></div><button type="button" className={styles.manageOnlyButton} onClick={onManage}>{area === "drugstore" ? "Control de stock" : "Gestionar menu"}</button></>}</form></section>;
 }
 
-function CashBar({ cashSession, sales, onMovement, onClose }: { cashSession: CashSession; sales: Sale[]; onMovement: () => void; onClose: () => void }) {
+function CashBar({ cashSession, sales, closeHour, onMovement, onClose }: { cashSession: CashSession; sales: Sale[]; closeHour: string; onMovement: () => void; onClose: () => void }) {
   const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
-  return <section className={styles.cashBar}><div><span>Caja abierta</span><strong>Caja unica</strong><small>Desde {date(cashSession.openedAt)} - {cashSession.openedBy}</small></div><div className={styles.cashBarMetrics}><div><span>Total vendido</span><strong>{money(sessionSales.reduce((sum, sale) => sum + sale.total, 0))}</strong></div><div><span>Solo efectivo esperado</span><strong>{money(cashExpected(cashSession, sales))}</strong></div></div><div className={styles.cashBarActions}><button className={styles.smallButton} onClick={onMovement}>Registrar movimiento</button><button className={styles.closeCashButton} onClick={onClose}>Cerrar caja</button></div></section>;
+  const spansBusinessDay = cashSpansBusinessDays(cashSession, closeHour);
+  return <section className={styles.cashBar}><div><span>Caja abierta</span><strong>Caja unica</strong><small>Desde {date(cashSession.openedAt)} - {cashSession.openedBy}</small></div><div className={styles.cashBarMetrics}><div><span>Total desde apertura</span><strong>{money(sessionSales.reduce((sum, sale) => sum + sale.total, 0))}</strong></div><div><span>Efectivo esperado acumulado</span><strong>{money(cashExpected(cashSession, sales))}</strong></div></div><div className={styles.cashBarActions}><button className={styles.smallButton} onClick={onMovement}>Registrar movimiento</button><button className={styles.closeCashButton} onClick={onClose}>Cerrar caja</button></div>{spansBusinessDay && <div className={styles.cashBarWarning}>Esta caja cruza jornadas. El efectivo esperado incluye todo desde la apertura.</div>}</section>;
 }
 
 function CashMovementModal({ onCancel, onSave }: { cashSession: CashSession; onCancel: () => void; onSave: (movement: Omit<CashMovement, "id" | "createdAt">) => void }) {
@@ -1090,13 +1097,13 @@ function CashMovementModal({ onCancel, onSave }: { cashSession: CashSession; onC
   return <div className={styles.modalBackdrop}><form className={styles.modal} onSubmit={(event) => { event.preventDefault(); onSave({ type, amount: Number(amount), reason }); }}><h2>Movimiento de caja</h2><div className={styles.stockSummary}><strong>Caja unica</strong><span>Caja abierta</span></div><label>Tipo<select value={type} onChange={(event) => setType(event.target.value as CashMovement["type"])}><option value="ingreso">Ingreso de efectivo</option><option value="gasto">Gasto</option><option value="retiro">Retiro de efectivo</option></select></label><label>Importe<input required type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></label><label>Motivo<input required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ej: pago a proveedor" /></label><div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.primaryCompact}>Guardar movimiento</button></div></form></div>;
 }
 
-function CashCloseModal({ cashSession, sales, onCancel, onClose }: { cashSession: CashSession; sales: Sale[]; onCancel: () => void; onClose: (countedAmount: number) => void | Promise<void> }) {
+function CashCloseModal({ cashSession, sales, closeHour, onCancel, onClose }: { cashSession: CashSession; sales: Sale[]; closeHour: string; onCancel: () => void; onClose: (countedAmount: number) => void | Promise<void> }) {
   const [counted, setCounted] = useState("");
   const [loading, setLoading] = useState(false);
   const expected = cashExpected(cashSession, sales);
   const difference = counted === "" ? null : Number(counted) - expected;
   const sessionSales = sales.filter((sale) => sale.cashSessionId === cashSession.id);
-  return <div className={styles.modalBackdrop}><form className={`${styles.modal} ${styles.cashCloseModal}`} onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onClose(Number(counted)); setLoading(false); }}><h2>Cerrar caja</h2><div className={styles.cashCloseSummary}><Total label="Total vendido" value={sessionSales.reduce((sum, sale) => sum + sale.total, 0)} /><Total label="Efectivo inicial" value={cashSession.openingAmount} /><Total label="Ventas en efectivo" value={paymentTotal(sessionSales, "Efectivo")} /><Total label="Transferencias" value={paymentTotal(sessionSales, "Transferencia")} /><Total label="Tarjetas" value={paymentTotal(sessionSales, "Tarjeta")} /><Total label="Cuenta corriente" value={paymentTotal(sessionSales, "Cuenta corriente")} /><Total label="Ingresos" value={movementTotal(cashSession, "ingreso")} /><Total label="Gastos" value={movementTotal(cashSession, "gasto")} /><Total label="Retiros" value={movementTotal(cashSession, "retiro")} /><div className={styles.expectedCash}><span>Efectivo esperado en caja</span><strong>{money(expected)}</strong></div></div><label>Efectivo contado<input autoFocus required type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} /></label>{difference !== null && <div className={`${styles.cashDifference} ${difference === 0 ? styles.exactCash : difference < 0 ? styles.missingCash : styles.extraCash}`}><span>Diferencia</span><strong>{money(difference)}</strong></div>}<div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.closeCashButton} disabled={loading}>{loading ? "Cerrando..." : "Confirmar cierre"}</button></div></form></div>;
+  return <div className={styles.modalBackdrop}><form className={`${styles.modal} ${styles.cashCloseModal}`} onSubmit={async (event) => { event.preventDefault(); setLoading(true); await onClose(Number(counted)); setLoading(false); }}><h2>Cerrar caja</h2>{cashSpansBusinessDays(cashSession, closeHour) && <div className={styles.cashCloseWarning}>Esta caja quedo abierta de una jornada anterior. El cierre acumula todo lo vendido desde {date(cashSession.openedAt)}.</div>}<div className={styles.cashCloseSummary}><Total label="Total desde apertura" value={sessionSales.reduce((sum, sale) => sum + sale.total, 0)} /><Total label="Efectivo inicial" value={cashSession.openingAmount} /><Total label="Ventas en efectivo" value={paymentTotal(sessionSales, "Efectivo")} /><Total label="Transferencias" value={paymentTotal(sessionSales, "Transferencia")} /><Total label="Tarjetas" value={paymentTotal(sessionSales, "Tarjeta")} /><Total label="Cuenta corriente" value={paymentTotal(sessionSales, "Cuenta corriente")} /><Total label="Ingresos" value={movementTotal(cashSession, "ingreso")} /><Total label="Gastos" value={movementTotal(cashSession, "gasto")} /><Total label="Retiros" value={movementTotal(cashSession, "retiro")} /><div className={styles.expectedCash}><span>Efectivo esperado acumulado</span><strong>{money(expected)}</strong></div></div><label>Efectivo contado<input autoFocus required type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} /></label>{difference !== null && <div className={`${styles.cashDifference} ${difference === 0 ? styles.exactCash : difference < 0 ? styles.missingCash : styles.extraCash}`}><span>Diferencia</span><strong>{money(difference)}</strong></div>}<div className={styles.modalActions}><button type="button" className={styles.smallButton} onClick={onCancel}>Cancelar</button><button className={styles.closeCashButton} disabled={loading}>{loading ? "Cerrando..." : "Confirmar cierre"}</button></div></form></div>;
 }
 
 function ReportsView({
@@ -1132,11 +1139,11 @@ function ReportsView({
           <span>Control</span>
           <h2>Reportes</h2>
         </div>
-        <label>Fecha a revisar<input type="date" value={reportDate} max={dateKey(new Date())} onChange={(event) => setReportDate(event.target.value)} /></label>
+        <label>Jornada a revisar<input type="date" value={reportDate} max={businessDateKey(new Date(), state.settings.operationalCloseHour)} onChange={(event) => setReportDate(event.target.value)} /></label>
       </section>
 
       <div className={styles.reportMetricGrid}>
-        <ReportMetric label="Vendido en la fecha" value={money(dayTotal)} meta={`${selectedDaySales.length} tickets`} tone="money" />
+        <ReportMetric label="Vendido en la jornada" value={money(dayTotal)} meta={`${selectedDaySales.length} tickets`} tone="money" />
         <ReportMetric label="Efectivo vendido" value={money(dayCash)} meta="Solo ventas en efectivo" tone="cash" />
         <ReportMetric label="Drugstore" value={money(salesTotal(selectedDayDrugstoreSales))} meta={`${selectedDayDrugstoreSales.length} tickets`} />
         <ReportMetric label="Bar" value={money(salesTotal(selectedDayBarSales))} meta={`${selectedDayBarSales.length} tickets`} />
@@ -1144,7 +1151,7 @@ function ReportsView({
       </div>
 
       <section className={styles.reportBlock}>
-        <div className={styles.reportSectionHeader}><div><span>Detalle de la fecha</span><h2>Que se vendio</h2></div><strong>{money(dayTotal)}</strong></div>
+        <div className={styles.reportSectionHeader}><div><span>Corte {state.settings.operationalCloseHour}</span><h2>Que se vendio</h2></div><strong>{money(dayTotal)}</strong></div>
         <div className={styles.dailySalesGrid}>
           <Panel title="Drugstore"><DailyItems sales={selectedDayDrugstoreSales} /></Panel>
           <Panel title="Bar"><DailyItems sales={selectedDayBarSales} /></Panel>
@@ -1202,7 +1209,7 @@ function CashHistory({ cashSessions, sales, settings }: { cashSessions: CashSess
   const [selectedCashId, setSelectedCashId] = useState("");
   const [page, setPage] = useState(1);
   const closed = cashSessions.filter((cash) => cash.status === "cerrada").sort((a, b) => new Date(b.closedAt ?? 0).getTime() - new Date(a.closedAt ?? 0).getTime());
-  const filtered = closeDate ? closed.filter((cash) => cash.closedAt && dateKey(new Date(cash.closedAt)) === closeDate) : closed;
+  const filtered = closeDate ? closed.filter((cash) => cash.closedAt && businessDateKey(new Date(cash.closedAt), settings.operationalCloseHour) === closeDate) : closed;
   const totalPages = Math.max(1, Math.ceil(filtered.length / 20));
   const currentPage = Math.min(page, totalPages);
   const visibleCashSessions = filtered.slice((currentPage - 1) * 20, currentPage * 20);
@@ -1210,10 +1217,10 @@ function CashHistory({ cashSessions, sales, settings }: { cashSessions: CashSess
   const archivedSales = selectedCash ? sales.filter((sale) => sale.cashSessionId === selectedCash.id) : [];
 
   return <section className={styles.cashHistorySection}>
-    <div className={styles.cashHistoryHeader}><div><span>Archivo de cajas</span><h2>Cierres anteriores</h2></div><div className={styles.cashDateFilter}><label>Fecha de cierre<input type="date" value={closeDate} max={dateKey(new Date())} onChange={(event) => { setCloseDate(event.target.value); setPage(1); }} /></label>{closeDate && <button className={styles.smallButton} onClick={() => { setCloseDate(""); setPage(1); }}>Ver todas</button>}</div></div>
+    <div className={styles.cashHistoryHeader}><div><span>Archivo de cajas</span><h2>Cierres anteriores</h2></div><div className={styles.cashDateFilter}><label>Jornada de cierre<input type="date" value={closeDate} max={businessDateKey(new Date(), settings.operationalCloseHour)} onChange={(event) => { setCloseDate(event.target.value); setPage(1); }} /></label>{closeDate && <button className={styles.smallButton} onClick={() => { setCloseDate(""); setPage(1); }}>Ver todas</button>}</div></div>
     <Panel title={`Historial de cierres (${filtered.length})`}>
       <div className={styles.tableWrap}><table><thead><tr><th>Area</th><th>Responsable</th><th>Apertura</th><th>Cierre</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th /></tr></thead><tbody>{visibleCashSessions.map((cash) => <tr key={cash.id}><td>{labelArea(cash.area)}</td><td>{cash.closedBy ?? cash.openedBy}</td><td>{date(cash.openedAt)}</td><td>{cash.closedAt ? date(cash.closedAt) : "-"}</td><td>{money(cash.expectedAmount ?? 0)}</td><td>{money(cash.countedAmount ?? 0)}</td><td className={(cash.difference ?? 0) < 0 ? styles.low : ""}>{money(cash.difference ?? 0)}</td><td><div className={styles.rowActions}><button className={styles.smallButton} onClick={() => setSelectedCashId(cash.id)}>Ver tickets</button><button className={styles.smallButton} onClick={() => printCashClose(settings, cash, sales)}>Reimprimir cierre</button></div></td></tr>)}</tbody></table></div>
-      <ListEmpty show={!filtered.length} text={closed.length ? "No hay cierres en esa fecha." : "Todavia no hay cierres de caja."} />
+      <ListEmpty show={!filtered.length} text={closed.length ? "No hay cierres en esa jornada." : "Todavia no hay cierres de caja."} />
       {totalPages > 1 && <div className={styles.pagination}><button className={styles.smallButton} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><strong>Pagina {currentPage} de {totalPages}</strong><button className={styles.smallButton} disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></div>}
     </Panel>
     {selectedCash && <div className={styles.archivedTickets}><div className={styles.archiveTitle}><div><span>Caja archivada</span><h2>{labelArea(selectedCash.area)} - {selectedCash.closedAt ? date(selectedCash.closedAt) : ""}</h2></div><button className={styles.smallButton} onClick={() => setSelectedCashId("")}>Cerrar detalle</button></div><SalesTable title="Tickets de este cierre" sales={archivedSales} settings={settings} /></div>}
@@ -1334,7 +1341,7 @@ function ListEmpty({ show, text }: { show: boolean; text: string }) {
 
 function SettingsForm({ state, onSave }: { state: AppState; onSave: (settings: AppState["settings"]) => void }) {
   const [settings, setSettings] = useState(state.settings);
-  return <div className={styles.settingsForm}><label>Nombre del local<input value={settings.businessName} onChange={(event) => setSettings({ ...settings, businessName: event.target.value })} /></label><label>Direccion<input value={settings.businessAddress} onChange={(event) => setSettings({ ...settings, businessAddress: event.target.value })} /></label><label>Telefono<input value={settings.businessPhone} onChange={(event) => setSettings({ ...settings, businessPhone: event.target.value })} /></label><label>Texto al pie del ticket<input value={settings.ticketFooter} onChange={(event) => setSettings({ ...settings, ticketFooter: event.target.value })} /></label><button className={styles.primaryCompact} onClick={() => onSave(settings)}>Guardar ajustes</button></div>;
+  return <div className={styles.settingsForm}><label>Nombre del local<input value={settings.businessName} onChange={(event) => setSettings({ ...settings, businessName: event.target.value })} /></label><label>Direccion<input value={settings.businessAddress} onChange={(event) => setSettings({ ...settings, businessAddress: event.target.value })} /></label><label>Telefono<input value={settings.businessPhone} onChange={(event) => setSettings({ ...settings, businessPhone: event.target.value })} /></label><label>Hora de corte de jornada<input type="time" value={settings.operationalCloseHour} onChange={(event) => setSettings({ ...settings, operationalCloseHour: event.target.value })} /></label><label>Texto al pie del ticket<input value={settings.ticketFooter} onChange={(event) => setSettings({ ...settings, ticketFooter: event.target.value })} /></label><button className={styles.primaryCompact} onClick={() => onSave(settings)}>Guardar ajustes</button></div>;
 }
 
 function ProductModal({ product, onCancel, onSave }: { product: Product; onCancel: () => void; onSave: (product: Product) => void }) {
@@ -1495,6 +1502,10 @@ function cashExpected(cashSession: CashSession, sales: Sale[]) {
     - movementTotal(cashSession, "retiro");
 }
 
+function cashSpansBusinessDays(cashSession: CashSession, closeHour: string) {
+  return businessDateKey(new Date(cashSession.openedAt), closeHour) !== businessDateKey(new Date(), closeHour);
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(value || 0);
 }
@@ -1521,6 +1532,57 @@ function dateKey(value: Date) {
   const month = String(value.getMonth() + 1).padStart(2, "0");
   const day = String(value.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function businessDateKey(value: Date, closeHour: string) {
+  const businessDate = new Date(value);
+  businessDate.setMinutes(businessDate.getMinutes() - parseTimeMinutes(closeHour));
+  return dateKey(businessDate);
+}
+
+function parseTimeMinutes(value: string) {
+  if (!isValidTime(value)) return 180;
+  const [hours = 3, minutes = 0] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function isValidTime(value?: string): value is string {
+  return Boolean(value && /^\d{2}:\d{2}$/.test(value));
+}
+
+function operationalCutoffFor(value: Date, closeHour: string) {
+  const cutoff = new Date(value);
+  const minutes = parseTimeMinutes(closeHour);
+  cutoff.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return cutoff;
+}
+
+function operationalReminderFor(value: Date) {
+  const reminder = new Date(value);
+  reminder.setHours(0, 50, 0, 0);
+  return reminder;
+}
+
+function cashSessionNotice(cashSession: CashSession, closeHour: string) {
+  const now = new Date();
+  const cutoff = operationalCutoffFor(now, closeHour);
+  const reminderStart = operationalReminderFor(now);
+  const openedAt = new Date(cashSession.openedAt);
+  if (now >= cutoff && openedAt < cutoff) {
+    return {
+      tone: "danger" as const,
+      title: "Caja pendiente de cierre",
+      text: `La jornada cerro a las ${closeHour}. Cerren la caja para iniciar una jornada limpia.`,
+    };
+  }
+  if (now >= reminderStart && now < cutoff && openedAt < cutoff) {
+    return {
+      tone: "soft" as const,
+      title: "Recordatorio de cierre",
+      text: `La jornada cierra a las ${closeHour}. Conviene ir preparando el cierre de caja.`,
+    };
+  }
+  return null;
 }
 
 function labelArea(area: Area | "general") {
@@ -1590,6 +1652,7 @@ function normalizeTables(tables: TableOrder[]) {
 function normalizeState(state: AppState): AppState {
   return {
     ...state,
+    settings: normalizeSettings(state.settings),
     products: state.products.map((product) => {
       const legacyProduct = product as Product & { barcode?: string };
       const barcodes = Array.isArray(legacyProduct.barcodes)
@@ -1602,6 +1665,15 @@ function normalizeState(state: AppState): AppState {
     sales: state.sales.map((sale, index) => ({ ...sale, cashSessionId: sale.cashSessionId ?? "", ticketNumber: sale.ticketNumber || `${sale.area === "bar" ? "B" : "D"}-${String(index + 1).padStart(4, "0")}` })),
     tables: normalizeTables(state.tables),
     cashSessions: (state.cashSessions ?? []).map((cash) => ({ ...cash, openedBy: cash.openedBy ?? "Usuario", movements: cash.movements ?? [] })),
+  };
+}
+
+function normalizeSettings(settings: Partial<AppState["settings"]> | undefined): AppState["settings"] {
+  const operationalCloseHour = settings?.operationalCloseHour;
+  return {
+    ...seedState.settings,
+    ...settings,
+    operationalCloseHour: isValidTime(operationalCloseHour) ? operationalCloseHour : seedState.settings.operationalCloseHour,
   };
 }
 
