@@ -1855,13 +1855,20 @@
 
 .cashBarMetrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
 .cashBarMetrics div {
   border-left: 3px solid #b88345;
   padding-left: 12px;
+}
+
+.cashBarMetrics .initialCashMetric {
+  border-left-color: #1f6fbf;
+  background: #eff6ff;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .cashBarMetrics span,
