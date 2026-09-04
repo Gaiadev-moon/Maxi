@@ -166,6 +166,33 @@
   opacity: 0.78;
 }
 
+.shiftPendingCash {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 8px;
+  border: 1px solid #efc783;
+  border-radius: 8px;
+  background: #fff2d8;
+  color: #70480e;
+  padding: 12px;
+  text-align: left;
+}
+
+.shiftPendingCash strong {
+  font-size: 13px;
+}
+
+.shiftPendingCash button {
+  min-height: 38px;
+  border: 1px solid #d7a452;
+  border-radius: 8px;
+  background: #fffaf0;
+  color: #70480e;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
 .cashOpeningSplash {
   gap: 20px;
   align-content: center;
@@ -317,6 +344,58 @@
 
 .cashNoticeDanger span {
   color: #8f321f;
+}
+
+.cashLiveNotice {
+  position: sticky;
+  top: 10px;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  border: 1px solid #9ec4ff;
+  border-left: 7px solid #2467db;
+  border-radius: 8px;
+  background: #eef5ff;
+  color: #123268;
+  padding: 12px 14px;
+  box-shadow: 0 14px 34px rgba(20, 74, 151, 0.16);
+}
+
+.shiftStartPage > .cashLiveNotice {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  width: min(680px, calc(100% - 32px));
+  transform: translateX(-50%);
+}
+
+.cashLiveNotice strong,
+.cashLiveNotice span {
+  display: block;
+}
+
+.cashLiveNotice strong {
+  font-weight: 950;
+}
+
+.cashLiveNotice span {
+  color: #294c84;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cashLiveNotice button {
+  min-height: 34px;
+  border: 1px solid #9bb9e8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1c4d9b;
+  padding: 0 12px;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 
@@ -1725,7 +1804,8 @@
 }
 
 .cashBarWarning,
-.cashCloseWarning {
+.cashCloseWarning,
+.pendingCashItem {
   grid-column: 1 / -1;
   border: 1px solid #efc783;
   border-left: 6px solid #dc8c1f;
@@ -1739,6 +1819,28 @@
 
 .cashCloseWarning {
   margin-bottom: 12px;
+}
+
+.pendingCashList {
+  display: grid;
+  gap: 10px;
+}
+
+.pendingCashItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pendingCashItem strong,
+.pendingCashItem span {
+  display: block;
+}
+
+.pendingCashItem span {
+  color: #79562a;
+  font-size: 13px;
 }
 
 .cashBar > div:first-child strong,
@@ -3533,6 +3635,11 @@
 
   .cashNotice span {
     text-align: left;
+  }
+
+  .cashLiveNotice {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   .shiftStartCard {
